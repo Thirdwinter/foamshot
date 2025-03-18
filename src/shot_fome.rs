@@ -23,7 +23,6 @@ pub struct ShotFome {
     pub pointer: Option<wl_pointer::WlPointer>,
     pub keyboard: Option<wl_keyboard::WlKeyboard>,
     pub layer_shell: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
-    // pub event_queue: EventQueue<ShotFome>,
     pub qh: Option<QueueHandle<ShotFome>>,
 
     pub cursor_shape_manager: Option<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1>,

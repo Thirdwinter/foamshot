@@ -321,12 +321,12 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome 
 
 impl Dispatch<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1, ()> for ShotFome {
     fn event(
-        state: &mut Self,
-        proxy: &wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
-        event: <wp_cursor_shape_device_v1::WpCursorShapeDeviceV1 as Proxy>::Event,
-        data: &(),
-        conn: &wayland_client::Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
+        _state: &mut Self,
+        _proxy: &wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
+        _event: <wp_cursor_shape_device_v1::WpCursorShapeDeviceV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &wayland_client::Connection,
+        _qhandle: &wayland_client::QueueHandle<Self>,
     ) {
         // todo!()
     }
