@@ -7,6 +7,9 @@ use wayland_client::{
     globals::registry_queue_init,
     protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_seat},
 };
+use wayland_protocols::wp::cursor_shape::v1::client::{
+    wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
+};
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::{self};
 
 use crate::{action::Action, freeze_mode::FreezeMode, select_mode::SelectMode};
@@ -22,6 +25,9 @@ pub struct ShotFome {
     pub layer_shell: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
     // pub event_queue: EventQueue<ShotFome>,
     pub qh: Option<QueueHandle<ShotFome>>,
+
+    pub cursor_shape_manager: Option<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1>,
+    pub cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
 
     pub phys_width: Option<i32>,
     pub phys_height: Option<i32>,
@@ -54,6 +60,8 @@ impl ShotFome {
             current_pos: None,
             pointer_start: None,
             pointer_end: None,
+            cursor_shape_manager: None,
+            cursor_shape_device: None,
             action: Action::PRELOAD,
             freeze_mode,
             select_mode,

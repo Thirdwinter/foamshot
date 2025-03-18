@@ -6,6 +6,9 @@ use wayland_client::{
         wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
     },
 };
+use wayland_protocols::wp::cursor_shape::v1::client::{
+    wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
+};
 use wayland_protocols_wlr::{
     layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
     screencopy::v1::client::{
@@ -52,6 +55,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for ShotFome {
                     && state.freeze_mode.screencopy_manager.is_none()
                 {
                     state.freeze_mode.screencopy_manager = Some(proxy.bind(name, version, qh, ()));
+                } else if interface
+                    == wp_cursor_shape_manager_v1::WpCursorShapeManagerV1::interface().name
+                    && state.cursor_shape_manager.is_none()
+                {
+                    state.cursor_shape_manager = Some(proxy.bind(name, version, qh, ()));
                 }
             }
             wl_registry::Event::GlobalRemove { .. } => {
@@ -120,7 +128,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFome {
         event: <wl_pointer::WlPointer as wayland_client::Proxy>::Event,
         _data: &(),
         _conn: &wayland_client::Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
+        qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
             wl_pointer::Event::Enter { surface, .. } => {
@@ -129,6 +137,13 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFome {
                     // state.prev_select();
                 } else if surface == *state.select_mode.surface.as_ref().unwrap() {
                     println!("鼠标进入表面2");
+                    let cursor_shape_device = state
+                        .cursor_shape_manager
+                        .as_ref()
+                        .unwrap()
+                        .get_pointer(state.pointer.as_ref().unwrap(), qh, ());
+                    cursor_shape_device.set_shape(1, wp_cursor_shape_device_v1::Shape::Crosshair);
+                    state.cursor_shape_device = Some(cursor_shape_device);
                 }
             }
             // TEST:
@@ -304,6 +319,19 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome 
     }
 }
 
+impl Dispatch<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1, ()> for ShotFome {
+    fn event(
+        state: &mut Self,
+        proxy: &wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
+        event: <wp_cursor_shape_device_v1::WpCursorShapeDeviceV1 as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+        // todo!()
+    }
+}
+
 //NOTE: 空实现
 impl Dispatch<wl_surface::WlSurface, i32> for ShotFome {
     fn event(
@@ -391,3 +419,16 @@ impl ShmHandler for ShotFome {
     }
 }
 delegate_shm!(ShotFome);
+
+impl Dispatch<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, ()> for ShotFome {
+    fn event(
+        _state: &mut Self,
+        _proxy: &wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
+        _event: <wp_cursor_shape_manager_v1::WpCursorShapeManagerV1 as Proxy>::Event,
+        _data: &(),
+        _conn: &wayland_client::Connection,
+        _qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+        todo!()
+    }
+}
