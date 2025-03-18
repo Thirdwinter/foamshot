@@ -8,7 +8,7 @@ use wayland_protocols_wlr::{
     screencopy::v1::client::{zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1},
 };
 
-use crate::shot_fome::ShotFome;
+use crate::{check_options, shot_fome::ShotFome};
 
 #[derive(Default)]
 pub struct FreezeMode {
@@ -29,43 +29,36 @@ impl FreezeMode {
         phys_width: Option<i32>,
         phys_height: Option<i32>,
     ) {
-        if let (
-            Some(phys_width),
-            Some(phys_height),
-            Some(screencopy_manager),
-            Some(surface),
-            Some(layer_shell),
-            Some(output),
-            Some(qh),
-        ) = (
+        let (phys_width, phys_height, screencopy_manager, surface, layer_shell, output, qh) = check_options!(
             phys_width,
             phys_height,
-            &self.screencopy_manager,
-            &self.surface,
+            self.screencopy_manager.as_ref(),
+            self.surface.as_ref(),
             layer_shell,
             output,
-            qh,
-        ) {
-            let screencopy_frame = screencopy_manager.capture_output(true as i32, &output, &qh, ());
-            self.screencopy_frame = Some(screencopy_frame);
-            // NOTE: 创建layer
-            let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
-                &layer_shell,
-                &surface,
-                Some(&output),
-                Layer::Overlay,
-                "foam_freeze".to_string(),
-                &qh,
-                1,
-            );
-            println!("创建layer");
-            layer.set_anchor(Anchor::all());
-            layer.set_exclusive_zone(-1); // 将表面扩展到锚定边缘
-            layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
-            self.layer_surface = Some(layer);
+            qh
+        );
 
-            surface.damage(0, 0, phys_width, phys_height);
-            surface.commit();
-        };
+        let screencopy_frame = screencopy_manager.capture_output(true as i32, &output, &qh, ());
+        self.screencopy_frame = Some(screencopy_frame);
+
+        // 创建 layer
+        let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
+            &layer_shell,
+            &surface,
+            Some(&output),
+            Layer::Overlay,
+            "foam_freeze".to_string(),
+            &qh,
+            1,
+        );
+        println!("创建layer");
+        layer.set_anchor(Anchor::all());
+        layer.set_exclusive_zone(-1);
+        layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
+        self.layer_surface = Some(layer);
+
+        surface.damage(0, 0, phys_width, phys_height);
+        surface.commit();
     }
 }

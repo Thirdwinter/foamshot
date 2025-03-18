@@ -12,7 +12,7 @@ use wayland_protocols::wp::cursor_shape::v1::client::{
 };
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::{self};
 
-use crate::{action::Action, freeze_mode::FreezeMode, select_mode::SelectMode};
+use crate::{freeze_mode::FreezeMode, select_mode::SelectMode, utility::Action};
 
 pub struct ShotFome {
     pub compositor: Option<wl_compositor::WlCompositor>,

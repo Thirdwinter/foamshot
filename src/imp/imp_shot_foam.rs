@@ -16,7 +16,7 @@ use wayland_protocols_wlr::{
     },
 };
 
-use crate::{action::Action, shot_fome::ShotFome};
+use crate::{shot_fome::ShotFome, utility::Action};
 
 impl Dispatch<wl_registry::WlRegistry, ()> for ShotFome {
     fn event(
