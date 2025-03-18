@@ -29,13 +29,35 @@ impl FreezeMode {
         phys_width: Option<i32>,
         phys_height: Option<i32>,
     ) {
-        if let (Some(phys_width), Some(phys_height), Some(screencopy_manager), Some(surface), Some(layer_shell), Some(output), Some(qh)) =
-            (phys_width, phys_height, &self.screencopy_manager, &self.surface, layer_shell, output, qh)
-        {
+        if let (
+            Some(phys_width),
+            Some(phys_height),
+            Some(screencopy_manager),
+            Some(surface),
+            Some(layer_shell),
+            Some(output),
+            Some(qh),
+        ) = (
+            phys_width,
+            phys_height,
+            &self.screencopy_manager,
+            &self.surface,
+            layer_shell,
+            output,
+            qh,
+        ) {
             let screencopy_frame = screencopy_manager.capture_output(true as i32, &output, &qh, ());
             self.screencopy_frame = Some(screencopy_frame);
             // NOTE: 创建layer
-            let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(&layer_shell, &surface, Some(&output), Layer::Overlay, "foam_freeze".to_string(), &qh, 1);
+            let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
+                &layer_shell,
+                &surface,
+                Some(&output),
+                Layer::Overlay,
+                "foam_freeze".to_string(),
+                &qh,
+                1,
+            );
             println!("创建layer");
             layer.set_anchor(Anchor::all());
             layer.set_exclusive_zone(-1); // 将表面扩展到锚定边缘

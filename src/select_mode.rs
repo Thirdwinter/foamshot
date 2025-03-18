@@ -24,9 +24,31 @@ impl SelectMode {
         output: Option<wl_output::WlOutput>,
         qh: Option<wayland_client::QueueHandle<ShotFome>>,
     ) {
-        if let (Some(phys_width), Some(phys_height), Some(surface), Some(layer_shell), Some(output), Some(qh)) = (phys_width, phys_height, &self.surface, layer_shell, output, qh) {
+        if let (
+            Some(phys_width),
+            Some(phys_height),
+            Some(surface),
+            Some(layer_shell),
+            Some(output),
+            Some(qh),
+        ) = (
+            phys_width,
+            phys_height,
+            &self.surface,
+            layer_shell,
+            output,
+            qh,
+        ) {
             // NOTE: 创建layer
-            let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(&layer_shell, &surface, Some(&output), Layer::Overlay, "foam_select".to_string(), &qh, 2);
+            let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
+                &layer_shell,
+                &surface,
+                Some(&output),
+                Layer::Overlay,
+                "foam_select".to_string(),
+                &qh,
+                2,
+            );
 
             layer.set_anchor(Anchor::all());
 
@@ -39,17 +61,32 @@ impl SelectMode {
             surface.commit();
         };
     }
-    pub fn before_select_handle(&mut self, phys_width: Option<i32>, phys_height: Option<i32>, pool: &mut slot::SlotPool) {
-        if let (Some(phys_widths), Some(phys_heights), Some(surface)) = (phys_width, phys_height, &self.surface) {
+    pub fn before_select_handle(
+        &mut self,
+        phys_width: Option<i32>,
+        phys_height: Option<i32>,
+        pool: &mut slot::SlotPool,
+    ) {
+        if let (Some(phys_widths), Some(phys_heights), Some(surface)) =
+            (phys_width, phys_height, &self.surface)
+        {
             let (buffer, canvas) = pool
-                .create_buffer(phys_widths as i32, phys_heights as i32, phys_widths as i32 * 4, wl_shm::Format::Argb8888)
+                .create_buffer(
+                    phys_widths as i32,
+                    phys_heights as i32,
+                    phys_widths as i32 * 4,
+                    wl_shm::Format::Argb8888,
+                )
                 .unwrap();
             canvas.fill(100);
 
             buffer.attach_to(surface).unwrap();
             self.buffer = Some(buffer);
             // 请求重绘
-            self.surface.as_ref().unwrap().damage_buffer(0, 0, phys_widths, phys_heights);
+            self.surface
+                .as_ref()
+                .unwrap()
+                .damage_buffer(0, 0, phys_widths, phys_heights);
             surface.commit();
             // self.select_surface.as_ref().unwrap().commit();
         }
@@ -65,7 +102,12 @@ impl SelectMode {
     ) {
         if let (Some(phys_widths), Some(phys_heights)) = (phys_width, phys_height) {
             let (buffer, canvas) = pool
-                .create_buffer(phys_widths as i32, phys_heights as i32, phys_widths as i32 * 4, wl_shm::Format::Argb8888)
+                .create_buffer(
+                    phys_widths as i32,
+                    phys_heights as i32,
+                    phys_widths as i32 * 4,
+                    wl_shm::Format::Argb8888,
+                )
                 .unwrap();
             canvas.fill(0);
             let cairo_surface = unsafe {
@@ -81,7 +123,9 @@ impl SelectMode {
             };
 
             // 创建 Cairo 上下文
-            let ctx = Context::new(&cairo_surface).map_err(|e| format!("Failed to create Cairo context: {}", e)).unwrap();
+            let ctx = Context::new(&cairo_surface)
+                .map_err(|e| format!("Failed to create Cairo context: {}", e))
+                .unwrap();
 
             // 填充整个表面为白色半透明
             ctx.set_source_rgba(1.0, 1.0, 1.0, 0.3);
@@ -100,7 +144,10 @@ impl SelectMode {
             buffer.attach_to(self.surface.as_ref().unwrap()).unwrap();
             self.buffer = Some(buffer);
             // 请求重绘
-            self.surface.as_ref().unwrap().damage_buffer(0, 0, phys_widths, phys_heights);
+            self.surface
+                .as_ref()
+                .unwrap()
+                .damage_buffer(0, 0, phys_widths, phys_heights);
             self.surface.as_ref().unwrap().commit();
         }
     }

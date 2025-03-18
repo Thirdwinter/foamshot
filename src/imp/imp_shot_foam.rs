@@ -2,11 +2,15 @@ use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
 use wayland_client::{
     Dispatch, Proxy,
     globals::GlobalListContents,
-    protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface},
+    protocol::{
+        wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
+    },
 };
 use wayland_protocols_wlr::{
     layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
-    screencopy::v1::client::{zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1},
+    screencopy::v1::client::{
+        zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
+    },
 };
 
 use crate::{action::Action, shot_fome::ShotFome};
@@ -21,20 +25,32 @@ impl Dispatch<wl_registry::WlRegistry, ()> for ShotFome {
         qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
-            wl_registry::Event::Global { name, interface, version } => {
-                if interface == wl_compositor::WlCompositor::interface().name && state.compositor.is_none() {
+            wl_registry::Event::Global {
+                name,
+                interface,
+                version,
+            } => {
+                if interface == wl_compositor::WlCompositor::interface().name
+                    && state.compositor.is_none()
+                {
                     state.compositor = Some(proxy.bind(name, version, qh, ()))
                 } else if interface == wl_seat::WlSeat::interface().name && state.seat.is_none() {
                     let seat: wl_seat::WlSeat = proxy.bind(name, version, qh, ());
                     state.pointer = Some(seat.get_pointer(qh, ()));
                     state.keyboard = Some(seat.get_keyboard(qh, ()));
                     state.seat = Some(seat);
-                } else if interface == wl_output::WlOutput::interface().name && state.output.is_none() {
+                } else if interface == wl_output::WlOutput::interface().name
+                    && state.output.is_none()
+                {
                     let output = proxy.bind(name, version, qh, ());
                     state.output = Some(output);
-                } else if interface == zwlr_layer_shell_v1::ZwlrLayerShellV1::interface().name && state.layer_shell.is_none() {
+                } else if interface == zwlr_layer_shell_v1::ZwlrLayerShellV1::interface().name
+                    && state.layer_shell.is_none()
+                {
                     state.layer_shell = Some(proxy.bind(name, version, qh, ()));
-                } else if interface == ZwlrScreencopyManagerV1::interface().name && state.freeze_mode.screencopy_manager.is_none() {
+                } else if interface == ZwlrScreencopyManagerV1::interface().name
+                    && state.freeze_mode.screencopy_manager.is_none()
+                {
                     state.freeze_mode.screencopy_manager = Some(proxy.bind(name, version, qh, ()));
                 }
             }
@@ -116,13 +132,20 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFome {
                 }
             }
             // TEST:
-            wl_pointer::Event::Button { state: button_state, .. } => {
+            wl_pointer::Event::Button {
+                state: button_state,
+                ..
+            } => {
                 if let Some((current_x, current_y)) = state.current_pos {
-                    if button_state == wayland_client::WEnum::Value(wl_pointer::ButtonState::Released) {
+                    if button_state
+                        == wayland_client::WEnum::Value(wl_pointer::ButtonState::Released)
+                    {
                         println!("右键松开");
                         state.pointer_end = Some((current_x, current_y));
                         state.action = Action::AfterSelect;
-                    } else if button_state == wayland_client::WEnum::Value(wl_pointer::ButtonState::Pressed) {
+                    } else if button_state
+                        == wayland_client::WEnum::Value(wl_pointer::ButtonState::Pressed)
+                    {
                         println!("右键按下");
 
                         state.pointer_start = Some((current_x, current_y));
@@ -130,7 +153,11 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFome {
                     }
                 }
             }
-            wl_pointer::Event::Motion { surface_x, surface_y, .. } => {
+            wl_pointer::Event::Motion {
+                surface_x,
+                surface_y,
+                ..
+            } => {
                 // println!("鼠标坐标: x: {:.2}, y: {:.2}", surface_x, surface_y);
                 // 保存当前鼠标位置
                 // TEST:
@@ -186,7 +213,11 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for ShotFome {
         _qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
-            zwlr_layer_surface_v1::Event::Configure { serial, width: _, height: _ } => {
+            zwlr_layer_surface_v1::Event::Configure {
+                serial,
+                width: _,
+                height: _,
+            } => {
                 // acknowledge the Configure event
                 println!("data:{}", data);
                 proxy.ack_configure(serial);
@@ -210,12 +241,22 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome 
         _qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
-            zwlr_screencopy_frame_v1::Event::Buffer { format, width, height, stride } => {
+            zwlr_screencopy_frame_v1::Event::Buffer {
+                format,
+                width,
+                height,
+                stride,
+            } => {
                 let (buffer, _canvas) = state
                     .pool
                     .as_mut()
                     .unwrap()
-                    .create_buffer(width as i32, height as i32, stride as i32, format.into_result().unwrap())
+                    .create_buffer(
+                        width as i32,
+                        height as i32,
+                        stride as i32,
+                        format.into_result().unwrap(),
+                    )
                     .map_err(|e| format!("Failed to create buffer: {}", e))
                     .unwrap();
                 state.freeze_mode.buffer = Some(buffer);
@@ -236,13 +277,23 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome 
                 surface.commit(); // 在附加任何缓冲区之前提交
 
                 println!("将缓冲区附加到表面");
-                state.freeze_mode.buffer.as_mut().unwrap().attach_to(&surface).unwrap();
+                state
+                    .freeze_mode
+                    .buffer
+                    .as_mut()
+                    .unwrap()
+                    .attach_to(&surface)
+                    .unwrap();
                 surface.damage(0, 0, state.phys_width.unwrap(), state.phys_height.unwrap());
                 println!("提交表面");
                 surface.set_buffer_scale(1);
                 surface.commit();
                 // TODO:
-                state.select_mode.before_select_handle(state.phys_width, state.phys_height, state.pool.as_mut().unwrap());
+                state.select_mode.before_select_handle(
+                    state.phys_width,
+                    state.phys_height,
+                    state.pool.as_mut().unwrap(),
+                );
             }
             zwlr_screencopy_frame_v1::Event::Failed => {
                 state.action = Action::EXIT;
