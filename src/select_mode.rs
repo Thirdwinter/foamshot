@@ -1,12 +1,9 @@
 use cairo::{Context, FontSlant, FontWeight, Format, ImageSurface};
 use smithay_client_toolkit::shm::slot::{self, Buffer};
-use wayland_client::protocol::{wl_output, wl_shm, wl_surface};
-use wayland_protocols_wlr::layer_shell::v1::client::{
-    zwlr_layer_shell_v1::{self, Layer},
-    zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
-};
+use wayland_client::protocol::{wl_shm, wl_surface};
+use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::{self};
 
-use crate::{check_options, shot_fome::ShotFome};
+use crate::check_options;
 
 #[derive(Default)]
 pub struct SelectMode {
@@ -16,72 +13,7 @@ pub struct SelectMode {
 }
 
 impl SelectMode {
-    pub fn prev_select(
-        &mut self,
-        phys_width: Option<i32>,
-        phys_height: Option<i32>,
-        layer_shell: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
-        output: Option<wl_output::WlOutput>,
-        qh: Option<wayland_client::QueueHandle<ShotFome>>,
-    ) {
-        let (phys_width, phys_height, surface, layer_shell, output, qh) = check_options!(
-            phys_width,
-            phys_height,
-            self.surface.as_ref(),
-            layer_shell,
-            output,
-            qh
-        );
-        // NOTE: 创建layer
-        let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
-            &layer_shell,
-            &surface,
-            Some(&output),
-            Layer::Overlay,
-            "foam_select".to_string(),
-            &qh,
-            2,
-        );
-
-        layer.set_anchor(Anchor::all());
-
-        layer.set_exclusive_zone(-1); // 将表面扩展到锚定边缘
-
-        layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
-        self.layer_surface = Some(layer);
-
-        surface.damage(0, 0, phys_width, phys_height);
-        surface.commit();
-    }
-    pub fn before_select_handle(
-        &mut self,
-        phys_width: Option<i32>,
-        phys_height: Option<i32>,
-        pool: &mut slot::SlotPool,
-    ) {
-        let (phys_width, phys_height, surface) =
-            check_options!(phys_width, phys_height, self.surface.as_ref());
-        let (buffer, canvas) = pool
-            .create_buffer(
-                phys_width as i32,
-                phys_height as i32,
-                phys_width as i32 * 4,
-                wl_shm::Format::Argb8888,
-            )
-            .unwrap();
-        canvas.fill(100);
-
-        buffer.attach_to(surface).unwrap();
-        self.buffer = Some(buffer);
-        // 请求重绘
-        self.surface
-            .as_ref()
-            .unwrap()
-            .damage_buffer(0, 0, phys_width, phys_height);
-        surface.commit();
-        // self.select_surface.as_ref().unwrap().commit();
-    }
-
+    /// NOTE: 更新选择区域
     pub fn update_select(
         &mut self,
         phys_width: Option<i32>,
@@ -95,9 +27,9 @@ impl SelectMode {
 
         let (buffer, canvas) = pool
             .create_buffer(
-                phys_width as i32,
-                phys_height as i32,
-                phys_width as i32 * 4,
+                phys_width,
+                phys_height,
+                phys_width * 4,
                 wl_shm::Format::Argb8888,
             )
             .unwrap();
@@ -106,9 +38,9 @@ impl SelectMode {
             ImageSurface::create_for_data(
                 std::slice::from_raw_parts_mut(canvas.as_mut_ptr(), canvas.len()),
                 Format::ARgb32,
-                phys_width as i32,
-                phys_height as i32,
-                phys_width as i32 * 4,
+                phys_width,
+                phys_height,
+                phys_width * 4,
             )
             .map_err(|e| format!("Failed to create Cairo surface: {}", e))
             .unwrap()

@@ -16,9 +16,9 @@ use wayland_protocols_wlr::{
     },
 };
 
-use crate::{shot_fome::ShotFome, utility::Action};
+use crate::{shot_foam::ShotFoam, utility::Action};
 
-impl Dispatch<wl_registry::WlRegistry, ()> for ShotFome {
+impl Dispatch<wl_registry::WlRegistry, ()> for ShotFoam {
     fn event(
         state: &mut Self,
         proxy: &wl_registry::WlRegistry,
@@ -78,7 +78,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for ShotFome {
     }
 }
 
-impl Dispatch<wl_output::WlOutput, ()> for ShotFome {
+impl Dispatch<wl_output::WlOutput, ()> for ShotFoam {
     fn event(
         state: &mut Self,
         _proxy: &wl_output::WlOutput,
@@ -121,7 +121,7 @@ impl Dispatch<wl_output::WlOutput, ()> for ShotFome {
 }
 
 //NOTE: ok
-impl Dispatch<wl_pointer::WlPointer, ()> for ShotFome {
+impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
     fn event(
         state: &mut Self,
         _proxy: &wl_pointer::WlPointer,
@@ -186,7 +186,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFome {
 }
 
 //NOTE: ok
-impl Dispatch<wl_keyboard::WlKeyboard, ()> for ShotFome {
+impl Dispatch<wl_keyboard::WlKeyboard, ()> for ShotFoam {
     fn event(
         state: &mut Self,
         _proxy: &wl_keyboard::WlKeyboard,
@@ -204,7 +204,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for ShotFome {
             } => match key_state {
                 wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) => {
                     if key == 1 {
-                        state.action = Action::EXIT;
+                        state.action = Action::Exit;
                         println!("ESC key pressed. Exiting...");
                     } else {
                         return;
@@ -218,7 +218,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for ShotFome {
 }
 
 // NOTE: configure event
-impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for ShotFome {
+impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for ShotFoam {
     fn event(
         _state: &mut Self,
         proxy: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
@@ -246,7 +246,7 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for ShotFome {
 }
 
 // NOTE: copy a frame
-impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome {
+impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam {
     fn event(
         state: &mut Self,
         proxy: &zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1,
@@ -274,7 +274,12 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome 
                     )
                     .map_err(|e| format!("Failed to create buffer: {}", e))
                     .unwrap();
-                state.freeze_mode.buffer = Some(buffer);
+                match state.action {
+                    Action::PreLoad => {
+                        state.freeze_mode.buffer = Some(buffer);
+                    }
+                    _ => (),
+                }
             }
             zwlr_screencopy_frame_v1::Event::BufferDone { .. } => {
                 // all buffer types are reported, proceed to send copy request
@@ -283,35 +288,23 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome 
                     return;
                 };
                 // copy frame to buffer, sends Ready when successful
-                proxy.copy(&buffer.wl_buffer());
+                proxy.copy(buffer.wl_buffer());
             }
             // NOTE: screen is freeze now
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
-                state.action = Action::FREEZE;
-                let surface = state.freeze_mode.surface.as_ref().unwrap();
-                surface.commit(); // 在附加任何缓冲区之前提交
-
-                println!("将缓冲区附加到表面");
-                state
-                    .freeze_mode
-                    .buffer
-                    .as_mut()
-                    .unwrap()
-                    .attach_to(&surface)
-                    .unwrap();
-                surface.damage(0, 0, state.phys_width.unwrap(), state.phys_height.unwrap());
-                println!("提交表面");
-                surface.set_buffer_scale(1);
-                surface.commit();
-                // TODO:
-                state.select_mode.before_select_handle(
-                    state.phys_width,
-                    state.phys_height,
-                    state.pool.as_mut().unwrap(),
-                );
+                match state.action {
+                    Action::PreLoad => {
+                        state.create_freeze_buffer();
+                        // TODO:
+                        state.create_select_buffer();
+                    }
+                    _ => {
+                        println!("not do")
+                    }
+                }
             }
             zwlr_screencopy_frame_v1::Event::Failed => {
-                state.action = Action::EXIT;
+                state.action = Action::Exit;
                 // state.exit = true;
             }
             _ => (),
@@ -319,7 +312,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFome 
     }
 }
 
-impl Dispatch<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1, ()> for ShotFome {
+impl Dispatch<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1, ()> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
@@ -333,7 +326,7 @@ impl Dispatch<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1, ()> for ShotFome
 }
 
 //NOTE: 空实现
-impl Dispatch<wl_surface::WlSurface, i32> for ShotFome {
+impl Dispatch<wl_surface::WlSurface, i32> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &wl_surface::WlSurface,
@@ -346,7 +339,7 @@ impl Dispatch<wl_surface::WlSurface, i32> for ShotFome {
     }
 }
 //NOTE: 空实现
-impl Dispatch<wl_seat::WlSeat, ()> for ShotFome {
+impl Dispatch<wl_seat::WlSeat, ()> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &wl_seat::WlSeat,
@@ -359,7 +352,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for ShotFome {
     }
 }
 //NOTE: 空实现
-impl Dispatch<wl_compositor::WlCompositor, ()> for ShotFome {
+impl Dispatch<wl_compositor::WlCompositor, ()> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &wl_compositor::WlCompositor,
@@ -372,7 +365,7 @@ impl Dispatch<wl_compositor::WlCompositor, ()> for ShotFome {
     }
 }
 // NOTE: unimplemented
-impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for ShotFome {
+impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &wl_registry::WlRegistry,
@@ -386,7 +379,7 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for ShotFome {
 }
 
 //NOTE: 空实现
-impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for ShotFome {
+impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
@@ -400,7 +393,7 @@ impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for ShotFome {
 }
 
 // NOTE: 空实现
-impl Dispatch<ZwlrScreencopyManagerV1, ()> for ShotFome {
+impl Dispatch<ZwlrScreencopyManagerV1, ()> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &ZwlrScreencopyManagerV1,
@@ -413,14 +406,14 @@ impl Dispatch<ZwlrScreencopyManagerV1, ()> for ShotFome {
     }
 }
 
-impl ShmHandler for ShotFome {
+impl ShmHandler for ShotFoam {
     fn shm_state(&mut self) -> &mut smithay_client_toolkit::shm::Shm {
         self.shm.as_mut().unwrap()
     }
 }
-delegate_shm!(ShotFome);
+delegate_shm!(ShotFoam);
 
-impl Dispatch<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, ()> for ShotFome {
+impl Dispatch<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, ()> for ShotFoam {
     fn event(
         _state: &mut Self,
         _proxy: &wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
