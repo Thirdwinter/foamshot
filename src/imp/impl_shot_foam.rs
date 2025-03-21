@@ -4,6 +4,7 @@ use std::{
 };
 
 use cairo::{Format, ImageSurface};
+use log::{debug, info};
 use smithay_client_toolkit::shm::{self, slot};
 use wayland_client::{QueueHandle, protocol::wl_shm};
 use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -71,7 +72,7 @@ impl ShotFoam {
             &qh,
             1,
         );
-        println!("创建layer");
+        info!("create freeze_layer");
         layer.set_anchor(Anchor::all());
         layer.set_exclusive_zone(-1);
         layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
@@ -94,6 +95,7 @@ impl ShotFoam {
         surface.damage(0, 0, phys_width, phys_height);
         surface.set_buffer_scale(1);
         // NOTE: 这里切换状态
+        info!("attach freeze_buffer and change action to freeze");
         self.action = Action::Freeze;
         surface.commit();
     }
@@ -127,6 +129,7 @@ impl ShotFoam {
         self.select_mode.layer_surface = Some(layer);
 
         surface.damage(0, 0, phys_width, phys_height);
+        info!("create select_layer");
         surface.commit();
     }
 
@@ -183,10 +186,10 @@ impl ShotFoam {
         if height <= 1.0 {
             height = 1.0;
         }
-        println!("start_x: {}, start_y: {}", start_x, start_y);
-        println!("end_x: {}, end_y: {}", end_x, end_y);
-        println!("x: {}, y: {}", x, y);
-        println!("width: {}, height: {}", width, height);
+        debug!("start_x: {}, start_y: {}", start_x, start_y);
+        debug!("end_x: {}, end_y: {}", end_x, end_y);
+        debug!("x: {}, y: {}", x, y);
+        debug!("width: {}, height: {}", width, height);
         self.result_output.start = Some((x as i32, y as i32));
         self.result_output.width = Some(width as i32);
         self.result_output.height = Some(height as i32);
@@ -210,7 +213,7 @@ impl ShotFoam {
         let cairo_surface = unsafe {
             ImageSurface::create_for_data(
                 std::slice::from_raw_parts_mut(canvas.as_mut_ptr(), canvas.len()),
-                Format::ARgb32,
+                Format::Rgb24,
                 self.result_output.width.unwrap(),
                 self.result_output.height.unwrap(),
                 self.result_output.width.unwrap() * 4,

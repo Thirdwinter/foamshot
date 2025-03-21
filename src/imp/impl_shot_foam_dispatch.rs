@@ -1,3 +1,4 @@
+use log::{debug, info};
 use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
 use wayland_client::{
     Dispatch, Proxy,
@@ -135,10 +136,10 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
         match event {
             wl_pointer::Event::Enter { surface, .. } => {
                 if surface == *state.freeze_mode.surface.as_ref().unwrap() {
-                    println!("鼠标进入表面1");
+                    debug!("鼠标进入表面1");
                     // state.prev_select();
                 } else if surface == *state.select_mode.surface.as_ref().unwrap() {
-                    println!("鼠标进入表面2");
+                    debug!("鼠标进入表面2");
                     let cursor_shape_device = state
                         .cursor_shape_manager
                         .as_ref()
@@ -168,7 +169,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
                             state.pointer_start = Some((current_x, current_y));
                             state.action = Action::Onselect;
                         } else if state.action == Action::AfterSelect {
-                            println!("准备输出");
+                            debug!("准备输出到图像");
                             state.pre_output_to_png();
                             state.action = Action::GetResule;
                         }
@@ -214,7 +215,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for ShotFoam {
                         match state.action {
                             Action::AfterSelect => {
                                 state.action = Action::Freeze;
-                                println!("ESC key pressed. Exiting...");
+                                info!("ESC key pressed. Exiting...");
                             }
                             _ => {
                                 state.action = Action::Exit;
@@ -237,7 +238,7 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for ShotFoam {
         _state: &mut Self,
         proxy: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
         event: <zwlr_layer_surface_v1::ZwlrLayerSurfaceV1 as Proxy>::Event,
-        data: &i32,
+        _data: &i32,
         _conn: &wayland_client::Connection,
         _qh: &wayland_client::QueueHandle<Self>,
     ) {
@@ -248,7 +249,6 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for ShotFoam {
                 height: _,
             } => {
                 // acknowledge the Configure event
-                println!("data:{}", data);
                 proxy.ack_configure(serial);
             }
             zwlr_layer_surface_v1::Event::Closed => {
@@ -290,11 +290,11 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                     .unwrap();
                 match state.action {
                     Action::PreLoad => {
+                        debug!("copy_event: buffer; action: PreLoad");
                         state.freeze_mode.buffer = Some(buffer);
                     }
                     Action::GetResule => {
-                        println!("{},{},{}", width, height, stride);
-                        // TODO:
+                        debug!("copy_event: buffer; action: GetResule");
                         state.result_output.buffer = Some(buffer);
                     }
                     _ => (),
@@ -305,6 +305,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                     Action::PreLoad => {
                         // all buffer types are reported, proceed to send copy request
                         // after copy -> wait for Event::Ready
+                        debug!("copy_event: BufferDone; action: PreLoad");
                         let Some(buffer) = &state.freeze_mode.buffer else {
                             return;
                         };
@@ -314,6 +315,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                     Action::GetResule => {
                         // all buffer types are reported, proceed to send copy request
                         // after copy -> wait for Event::Ready
+                        debug!("copy_event: BufferDone; action: GetResule");
                         let Some(buffer) = &state.result_output.buffer else {
                             return;
                         };
@@ -327,11 +329,13 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
                 match state.action {
                     Action::PreLoad => {
+                        debug!("copy_event: Ready; action: PreLoad");
                         state.create_freeze_buffer();
                         // TODO:
                         state.create_select_buffer();
                     }
                     Action::GetResule => {
+                        debug!("copy_event: Ready; action: GetResule");
                         state.output_to_png();
                     }
                     _ => {
