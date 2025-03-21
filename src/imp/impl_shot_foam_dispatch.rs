@@ -55,6 +55,8 @@ impl Dispatch<wl_registry::WlRegistry, ()> for ShotFoam {
                     && state.freeze_mode.screencopy_manager.is_none()
                 {
                     state.freeze_mode.screencopy_manager = Some(proxy.bind(name, version, qh, ()));
+                    state.result_output.screencopy_manager =
+                        Some(proxy.bind(name, version, qh, ()));
                 } else if interface
                     == wp_cursor_shape_manager_v1::WpCursorShapeManagerV1::interface().name
                     && state.cursor_shape_manager.is_none()
@@ -155,16 +157,21 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
                     if button_state
                         == wayland_client::WEnum::Value(wl_pointer::ButtonState::Released)
                     {
-                        println!("右键松开");
-                        state.pointer_end = Some((current_x, current_y));
-                        state.action = Action::AfterSelect;
+                        if state.action == Action::Onselect {
+                            state.pointer_end = Some((current_x, current_y));
+                            state.action = Action::AfterSelect;
+                        }
                     } else if button_state
                         == wayland_client::WEnum::Value(wl_pointer::ButtonState::Pressed)
                     {
-                        println!("右键按下");
-
-                        state.pointer_start = Some((current_x, current_y));
-                        state.action = Action::Onselect;
+                        if state.action == Action::Freeze {
+                            state.pointer_start = Some((current_x, current_y));
+                            state.action = Action::Onselect;
+                        } else if state.action == Action::AfterSelect {
+                            println!("准备输出");
+                            state.pre_output_to_png();
+                            state.action = Action::GetResule;
+                        }
                     }
                 }
             }
@@ -204,8 +211,15 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for ShotFoam {
             } => match key_state {
                 wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) => {
                     if key == 1 {
-                        state.action = Action::Exit;
-                        println!("ESC key pressed. Exiting...");
+                        match state.action {
+                            Action::AfterSelect => {
+                                state.action = Action::Freeze;
+                                println!("ESC key pressed. Exiting...");
+                            }
+                            _ => {
+                                state.action = Action::Exit;
+                            }
+                        }
                     } else {
                         return;
                     }
@@ -278,17 +292,36 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                     Action::PreLoad => {
                         state.freeze_mode.buffer = Some(buffer);
                     }
+                    Action::GetResule => {
+                        println!("{},{},{}", width, height, stride);
+                        // TODO:
+                        state.result_output.buffer = Some(buffer);
+                    }
                     _ => (),
                 }
             }
             zwlr_screencopy_frame_v1::Event::BufferDone { .. } => {
-                // all buffer types are reported, proceed to send copy request
-                // after copy -> wait for Event::Ready
-                let Some(buffer) = &state.freeze_mode.buffer else {
-                    return;
-                };
-                // copy frame to buffer, sends Ready when successful
-                proxy.copy(buffer.wl_buffer());
+                match state.action {
+                    Action::PreLoad => {
+                        // all buffer types are reported, proceed to send copy request
+                        // after copy -> wait for Event::Ready
+                        let Some(buffer) = &state.freeze_mode.buffer else {
+                            return;
+                        };
+                        // copy frame to buffer, sends Ready when successful
+                        proxy.copy(buffer.wl_buffer());
+                    }
+                    Action::GetResule => {
+                        // all buffer types are reported, proceed to send copy request
+                        // after copy -> wait for Event::Ready
+                        let Some(buffer) = &state.result_output.buffer else {
+                            return;
+                        };
+                        // copy frame to buffer, sends Ready when successful
+                        proxy.copy(buffer.wl_buffer());
+                    }
+                    _ => (),
+                }
             }
             // NOTE: screen is freeze now
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
@@ -297,6 +330,9 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                         state.create_freeze_buffer();
                         // TODO:
                         state.create_select_buffer();
+                    }
+                    Action::GetResule => {
+                        state.output_to_png();
                     }
                     _ => {
                         println!("not do")

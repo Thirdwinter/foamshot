@@ -12,7 +12,10 @@ use wayland_protocols::wp::cursor_shape::v1::client::{
 };
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::{self};
 
-use crate::{config::Config, freeze_mode::FreezeMode, select_mode::SelectMode, utility::Action};
+use crate::{
+    config::Config, freeze_mode::FreezeMode, result_output::ResultOutput, select_mode::SelectMode,
+    utility::Action,
+};
 
 pub struct ShotFoam {
     pub compositor: Option<wl_compositor::WlCompositor>,
@@ -37,6 +40,8 @@ pub struct ShotFoam {
 
     pub freeze_mode: FreezeMode,
     pub select_mode: SelectMode,
+
+    pub result_output: ResultOutput,
 
     pub config: Config,
 }
@@ -78,17 +83,12 @@ pub fn run_main_loop() -> Result<(), Box<dyn std::error::Error>> {
                 )
             }
             Action::Freeze => {
+                shot_foam.create_select_buffer();
                 continue;
             }
             Action::Exit => {
                 std::process::exit(0);
             }
-            // Action::AfterSelect => shot_foam.select_mode.write_to_png(
-            //     &mut shot_foam.pool.as_mut().unwrap(),
-            //     shot_foam.phys_width,
-            //     shot_foam.phys_height,
-            //     shot_foam.config.output_path.clone(),
-            // ),
             _ => {}
         }
     }

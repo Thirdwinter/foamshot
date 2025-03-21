@@ -1,3 +1,9 @@
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+};
+
+use cairo::{Format, ImageSurface};
 use smithay_client_toolkit::shm::{self, slot};
 use wayland_client::{QueueHandle, protocol::wl_shm};
 use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -6,8 +12,8 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 };
 
 use crate::{
-    check_options, config, freeze_mode::FreezeMode, select_mode::SelectMode, shot_foam::ShotFoam,
-    utility::Action,
+    check_options, config, freeze_mode::FreezeMode, result_output::ResultOutput,
+    select_mode::SelectMode, shot_foam::ShotFoam, utility::Action,
 };
 
 impl ShotFoam {
@@ -36,6 +42,7 @@ impl ShotFoam {
             freeze_mode,
             select_mode,
             config: config::Config::new(),
+            result_output: ResultOutput::default(),
         }
     }
 
@@ -151,5 +158,73 @@ impl ShotFoam {
             .damage_buffer(0, 0, phys_width, phys_height);
         surface.commit();
         self.select_mode.surface.as_ref().unwrap().commit();
+    }
+
+    /// NOTE: 进行目标区域的copy
+    pub fn pre_output_to_png(&mut self) {
+        let (screencopy_manager, output, qh, (start_x, start_y), (end_x, end_y)) = check_options!(
+            self.result_output.screencopy_manager.as_ref(),
+            self.output.as_ref(),
+            self.qh.as_ref(),
+            self.pointer_start,
+            self.pointer_end
+        );
+
+        // 计算左上角坐标
+        let x = start_x.min(end_x);
+        let y = start_y.min(end_y);
+
+        // 计算宽高并确保至少为1
+        let mut width = (end_x - start_x).abs();
+        let mut height = (end_y - start_y).abs();
+        if width <= 1.0 {
+            width = 1.0;
+        }
+        if height <= 1.0 {
+            height = 1.0;
+        }
+        println!("start_x: {}, start_y: {}", start_x, start_y);
+        println!("end_x: {}, end_y: {}", end_x, end_y);
+        println!("x: {}, y: {}", x, y);
+        println!("width: {}, height: {}", width, height);
+        self.result_output.start = Some((x as i32, y as i32));
+        self.result_output.width = Some(width as i32);
+        self.result_output.height = Some(height as i32);
+
+        let _screencopy_frame = screencopy_manager.capture_output_region(
+            false as i32,
+            &output,
+            x as i32,      // 修正后的起始x坐标
+            y as i32,      // 修正后的起始y坐标
+            width as i32,  // 保证至少为1的宽度
+            height as i32, // 保证至少为1的高度
+            &qh,
+            (),
+        );
+    }
+
+    /// NOTE: 等待copy完成（Ready），然后输出
+    pub fn output_to_png(&mut self) {
+        let (buffer, pool) = check_options!(self.result_output.buffer.as_ref(), self.pool.as_mut());
+        let canvas = buffer.canvas(pool).expect("get canvas");
+        let cairo_surface = unsafe {
+            ImageSurface::create_for_data(
+                std::slice::from_raw_parts_mut(canvas.as_mut_ptr(), canvas.len()),
+                Format::ARgb32,
+                self.result_output.width.unwrap(),
+                self.result_output.height.unwrap(),
+                self.result_output.width.unwrap() * 4,
+            )
+            .map_err(|e| format!("Failed to create Cairo surface: {}", e))
+            .unwrap()
+        };
+        let output_path = &self.config.output_path;
+        let file = File::create(&output_path).unwrap();
+        let mut buffer_writer = BufWriter::new(file);
+        cairo_surface
+            .write_to_png(&mut buffer_writer)
+            .expect("write png");
+        buffer_writer.flush().unwrap();
+        std::process::exit(0);
     }
 }

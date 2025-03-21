@@ -1,7 +1,7 @@
 mod config;
 mod freeze_mode;
 mod imp;
-mod screen_copy_helper;
+mod result_output;
 mod select_mode;
 mod shot_foam;
 mod utility;
