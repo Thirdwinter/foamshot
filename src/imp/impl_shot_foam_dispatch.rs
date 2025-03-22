@@ -181,8 +181,9 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
             wl_pointer::Event::Motion {
                 surface_x,
                 surface_y,
-                ..
+                time,
             } => {
+                debug!("moved time:{}", time);
                 state.pointer_helper.current_pos = Some((surface_x.max(0.0), surface_y.max(0.0)));
             }
             _ => {}

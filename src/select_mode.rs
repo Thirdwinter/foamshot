@@ -10,6 +10,7 @@ pub struct SelectMode {
     pub surface: Option<wl_surface::WlSurface>,
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     pub buffer: Option<Buffer>,
+    pub last_pos: (f64, f64),
 }
 
 impl SelectMode {
@@ -24,6 +25,7 @@ impl SelectMode {
     ) {
         let (phys_width, phys_height, (start_x, start_y), (end_x, end_y)) =
             check_options!(phys_width, phys_height, pointer_start, current_pos);
+        self.last_pos = (end_x, end_y);
 
         let (buffer, canvas) = pool
             .create_buffer(

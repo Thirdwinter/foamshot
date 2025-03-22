@@ -72,6 +72,11 @@ pub fn run_main_loop() -> Result<(), Box<dyn std::error::Error>> {
         match &action {
             Action::Onselect => {
                 // TODO:
+                if let Some((end_x, end_y)) = shot_foam.pointer_helper.current_pos {
+                    if (end_x, end_y) == shot_foam.select_mode.last_pos {
+                        continue;
+                    }
+                }
                 shot_foam.select_mode.update_select(
                     shot_foam.width,
                     shot_foam.height,
