@@ -325,6 +325,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                     Action::PreLoad => {
                         debug!("copy_event: Ready; action: PreLoad");
                         state.create_freeze_buffer();
+                        // state.action = Action::Freeze;
                         // TODO:
                         state.create_select_buffer();
                     }
