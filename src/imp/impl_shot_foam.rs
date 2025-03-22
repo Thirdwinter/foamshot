@@ -13,8 +13,8 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 };
 
 use crate::{
-    check_options, cli, freeze_mode::FreezeMode, result_output::ResultOutput,
-    select_mode::SelectMode, shot_foam::ShotFoam, utility::Action,
+    check_options, cli, freeze_mode::FreezeMode, pointer_helper::PointerHelper,
+    result_output::ResultOutput, select_mode::SelectMode, shot_foam::ShotFoam, utility::Action,
 };
 
 impl ShotFoam {
@@ -28,21 +28,22 @@ impl ShotFoam {
             pool: Some(pool),
             shm: Some(shm),
             seat: None,
-            pointer: None,
+            // pointer: None,
             keyboard: None,
             layer_shell: None,
             qh: Some(qh.clone()),
-            phys_width: None,
-            phys_height: None,
-            current_pos: None,
-            pointer_start: None,
-            pointer_end: None,
-            cursor_shape_manager: None,
-            cursor_shape_device: None,
+            width: None,
+            height: None,
+            // current_pos: None,
+            // pointer_start: None,
+            // pointer_end: None,
+            // cursor_shape_manager: None,
+            // cursor_shape_device: None,
+            pointer_helper: PointerHelper::default(),
             action: Action::PreLoad,
             freeze_mode,
             select_mode,
-            config: cli::Cli::new(),
+            cli: cli::Cli::new(),
             result_output: ResultOutput::default(),
         }
     }
@@ -50,8 +51,8 @@ impl ShotFoam {
     /// NOTE: 在冻结屏幕前创建一个layer_surface
     pub fn create_freeze_layer_surface(&mut self) {
         let (phys_width, phys_height, screencopy_manager, surface, layer_shell, output, qh) = check_options!(
-            self.phys_width,
-            self.phys_height,
+            self.width,
+            self.height,
             self.freeze_mode.screencopy_manager.as_ref(),
             self.freeze_mode.surface.as_ref(),
             self.layer_shell.as_ref(),
@@ -59,7 +60,7 @@ impl ShotFoam {
             self.qh.as_ref()
         );
         let screencopy_frame =
-            screencopy_manager.capture_output(!self.config.no_cursor as i32, &output, &qh, ());
+            screencopy_manager.capture_output(!self.cli.no_cursor as i32, &output, &qh, ());
         self.freeze_mode.screencopy_frame = Some(screencopy_frame);
 
         // 创建 layer
@@ -87,8 +88,8 @@ impl ShotFoam {
         let (surface, freeze_buffer, phys_width, phys_height) = check_options!(
             self.freeze_mode.surface.as_ref(),
             self.freeze_mode.buffer.as_ref(),
-            self.phys_width,
-            self.phys_height
+            self.width,
+            self.height
         );
         surface.commit();
         freeze_buffer.attach_to(&surface).unwrap();
@@ -103,8 +104,8 @@ impl ShotFoam {
     /// NOTE: 预先生成select layer_surface
     pub fn create_select_layer_surface(&mut self) {
         let (phys_width, phys_height, surface, layer_shell, output, qh) = check_options!(
-            self.phys_width,
-            self.phys_height,
+            self.width,
+            self.height,
             self.select_mode.surface.as_ref(),
             self.layer_shell.as_ref(),
             self.output.as_ref(),
@@ -136,8 +137,8 @@ impl ShotFoam {
     /// NOTE: 创建select buffer并附加(白色半透明)
     pub fn create_select_buffer(&mut self) {
         let (phys_width, phys_height, surface, pool) = check_options!(
-            self.phys_width,
-            self.phys_height,
+            self.width,
+            self.height,
             self.select_mode.surface.as_ref(),
             self.pool.as_mut()
         );
@@ -169,8 +170,8 @@ impl ShotFoam {
             self.result_output.screencopy_manager.as_ref(),
             self.output.as_ref(),
             self.qh.as_ref(),
-            self.pointer_start,
-            self.pointer_end
+            self.pointer_helper.pointer_start,
+            self.pointer_helper.pointer_end
         );
 
         // 计算左上角坐标
@@ -221,7 +222,7 @@ impl ShotFoam {
             .map_err(|e| format!("Failed to create Cairo surface: {}", e))
             .unwrap()
         };
-        let output_path = &self.config.output_path;
+        let output_path = &self.cli.output_path;
         let file = File::create(&output_path).unwrap();
         let mut buffer_writer = BufWriter::new(file);
         cairo_surface

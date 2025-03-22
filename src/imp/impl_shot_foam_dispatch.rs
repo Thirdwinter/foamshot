@@ -40,7 +40,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for ShotFoam {
                     state.compositor = Some(proxy.bind(name, version, qh, ()))
                 } else if interface == wl_seat::WlSeat::interface().name && state.seat.is_none() {
                     let seat: wl_seat::WlSeat = proxy.bind(name, version, qh, ());
-                    state.pointer = Some(seat.get_pointer(qh, ()));
+                    state.pointer_helper.pointer = Some(seat.get_pointer(qh, ()));
                     state.keyboard = Some(seat.get_keyboard(qh, ()));
                     state.seat = Some(seat);
                 } else if interface == wl_output::WlOutput::interface().name
@@ -60,9 +60,18 @@ impl Dispatch<wl_registry::WlRegistry, ()> for ShotFoam {
                         Some(proxy.bind(name, version, qh, ()));
                 } else if interface
                     == wp_cursor_shape_manager_v1::WpCursorShapeManagerV1::interface().name
-                    && state.cursor_shape_manager.is_none()
+                    && state.pointer_helper.cursor_shape_manager.is_none()
                 {
-                    state.cursor_shape_manager = Some(proxy.bind(name, version, qh, ()));
+                    state.pointer_helper.cursor_shape_manager =
+                        Some(proxy.bind(name, version, qh, ()));
+                    state.pointer_helper.cursor_shape_device = Some(
+                        state
+                            .pointer_helper
+                            .cursor_shape_manager
+                            .clone()
+                            .unwrap()
+                            .get_pointer(&state.pointer_helper.wl_pointer(), qh, ()),
+                    )
                 }
             }
             wl_registry::Event::GlobalRemove { .. } => {
@@ -98,8 +107,8 @@ impl Dispatch<wl_output::WlOutput, ()> for ShotFoam {
                 height,
                 refresh: _,
             } => {
-                state.phys_height = Some(height);
-                state.phys_width = Some(width);
+                state.height = Some(height);
+                state.width = Some(width);
             }
             // 处理输出设备的几何事件
             wl_output::Event::Geometry {
@@ -131,7 +140,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
         event: <wl_pointer::WlPointer as wayland_client::Proxy>::Event,
         _data: &(),
         _conn: &wayland_client::Connection,
-        qh: &wayland_client::QueueHandle<Self>,
+        _qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
             wl_pointer::Event::Enter { surface, .. } => {
@@ -140,13 +149,16 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
                     // state.prev_select();
                 } else if surface == *state.select_mode.surface.as_ref().unwrap() {
                     debug!("鼠标进入表面2");
-                    let cursor_shape_device = state
-                        .cursor_shape_manager
-                        .as_ref()
-                        .unwrap()
-                        .get_pointer(state.pointer.as_ref().unwrap(), qh, ());
-                    cursor_shape_device.set_shape(1, wp_cursor_shape_device_v1::Shape::Crosshair);
-                    state.cursor_shape_device = Some(cursor_shape_device);
+                    state
+                        .pointer_helper
+                        .set_cursor_shape(1, wp_cursor_shape_device_v1::Shape::Crosshair);
+                    // let cursor_shape_device = state
+                    //     .cursor_shape_manager
+                    //     .as_ref()
+                    //     .unwrap()
+                    //     .get_pointer(state.pointer.as_ref().unwrap(), qh, ());
+                    // cursor_shape_device.set_shape(1, wp_cursor_shape_device_v1::Shape::Crosshair);
+                    // state.cursor_shape_device = Some(cursor_shape_device);
                 }
             }
             // TEST:
@@ -154,19 +166,19 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
                 state: button_state,
                 ..
             } => {
-                if let Some((current_x, current_y)) = state.current_pos {
+                if let Some((current_x, current_y)) = state.pointer_helper.current_pos.clone() {
                     if button_state
                         == wayland_client::WEnum::Value(wl_pointer::ButtonState::Released)
                     {
                         if state.action == Action::Onselect {
-                            state.pointer_end = Some((current_x, current_y));
+                            state.pointer_helper.pointer_end = Some((current_x, current_y));
                             state.action = Action::AfterSelect;
                         }
                     } else if button_state
                         == wayland_client::WEnum::Value(wl_pointer::ButtonState::Pressed)
                     {
                         if state.action == Action::Freeze {
-                            state.pointer_start = Some((current_x, current_y));
+                            state.pointer_helper.pointer_start = Some((current_x, current_y));
                             state.action = Action::Onselect;
                         } else if state.action == Action::AfterSelect {
                             debug!("准备输出到图像");
@@ -186,7 +198,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
                 // TEST:
                 // state.action = Some(crate::app::Action::FREEZE);
 
-                state.current_pos = Some((surface_x.max(0.0), surface_y.max(0.0)));
+                state.pointer_helper.current_pos = Some((surface_x.max(0.0), surface_y.max(0.0)));
             }
             _ => {}
         }

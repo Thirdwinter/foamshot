@@ -5,16 +5,13 @@ use smithay_client_toolkit::shm::{
 use wayland_client::{
     Connection, QueueHandle,
     globals::registry_queue_init,
-    protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_seat},
-};
-use wayland_protocols::wp::cursor_shape::v1::client::{
-    wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
+    protocol::{wl_compositor, wl_keyboard, wl_output, wl_seat},
 };
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::{self};
 
 use crate::{
-    cli::Cli, freeze_mode::FreezeMode, result_output::ResultOutput, select_mode::SelectMode,
-    utility::Action,
+    cli::Cli, freeze_mode::FreezeMode, pointer_helper::PointerHelper, result_output::ResultOutput,
+    select_mode::SelectMode, utility::Action,
 };
 
 pub struct ShotFoam {
@@ -23,19 +20,14 @@ pub struct ShotFoam {
     pub pool: Option<slot::SlotPool>,
     pub shm: Option<shm::Shm>,
     pub seat: Option<wl_seat::WlSeat>,
-    pub pointer: Option<wl_pointer::WlPointer>,
     pub keyboard: Option<wl_keyboard::WlKeyboard>,
     pub layer_shell: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
     pub qh: Option<QueueHandle<ShotFoam>>,
 
-    pub cursor_shape_manager: Option<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1>,
-    pub cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
+    pub pointer_helper: PointerHelper,
 
-    pub phys_width: Option<i32>,
-    pub phys_height: Option<i32>,
-    pub current_pos: Option<(f64, f64)>,
-    pub pointer_start: Option<(f64, f64)>,
-    pub pointer_end: Option<(f64, f64)>,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
     pub action: Action,
 
     pub freeze_mode: FreezeMode,
@@ -43,7 +35,13 @@ pub struct ShotFoam {
 
     pub result_output: ResultOutput,
 
-    pub config: Cli,
+    pub cli: Cli,
+    // pub pointer: Option<wl_pointer::WlPointer>,
+    // pub cursor_shape_manager: Option<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1>,
+    // pub cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
+    // pub current_pos: Option<(f64, f64)>,
+    // pub pointer_start: Option<(f64, f64)>,
+    // pub pointer_end: Option<(f64, f64)>,
 }
 
 pub fn run_main_loop() -> Result<(), Box<dyn std::error::Error>> {
@@ -75,11 +73,11 @@ pub fn run_main_loop() -> Result<(), Box<dyn std::error::Error>> {
             Action::Onselect => {
                 // TODO:
                 shot_foam.select_mode.update_select(
-                    shot_foam.phys_width,
-                    shot_foam.phys_height,
+                    shot_foam.width,
+                    shot_foam.height,
                     shot_foam.pool.as_mut().unwrap(),
-                    shot_foam.pointer_start,
-                    shot_foam.current_pos,
+                    shot_foam.pointer_helper.pointer_start,
+                    shot_foam.pointer_helper.current_pos,
                 )
             }
             Action::Freeze => {

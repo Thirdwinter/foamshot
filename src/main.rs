@@ -1,6 +1,7 @@
 mod cli;
 mod freeze_mode;
 mod imp;
+mod pointer_helper;
 mod result_output;
 mod select_mode;
 mod shot_foam;
