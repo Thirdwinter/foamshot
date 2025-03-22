@@ -82,7 +82,6 @@ pub fn run_main_loop() -> Result<(), Box<dyn std::error::Error>> {
             }
             Action::Freeze => {
                 shot_foam.create_select_buffer();
-                continue;
             }
             Action::Exit => {
                 std::process::exit(0);

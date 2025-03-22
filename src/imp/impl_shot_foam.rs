@@ -84,6 +84,7 @@ impl ShotFoam {
     }
 
     /// NOTE: 这一步在第一次帧copy后，将帧附加到freeze_surface
+    /// 这里进入了freeze状态
     pub fn create_freeze_buffer(&mut self) {
         let (surface, freeze_buffer, phys_width, phys_height) = check_options!(
             self.freeze_mode.surface.as_ref(),
@@ -135,6 +136,7 @@ impl ShotFoam {
     }
 
     /// NOTE: 创建select buffer并附加(白色半透明)
+    /// 这里将等待鼠标按下，随后进入Onselect
     pub fn create_select_buffer(&mut self) {
         let (phys_width, phys_height, surface, pool) = check_options!(
             self.width,

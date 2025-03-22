@@ -144,21 +144,11 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
     ) {
         match event {
             wl_pointer::Event::Enter { surface, .. } => {
-                if surface == *state.freeze_mode.surface.as_ref().unwrap() {
-                    debug!("鼠标进入表面1");
-                    // state.prev_select();
-                } else if surface == *state.select_mode.surface.as_ref().unwrap() {
+                if surface == *state.select_mode.surface.as_ref().unwrap() {
                     debug!("鼠标进入表面2");
                     state
                         .pointer_helper
                         .set_cursor_shape(1, wp_cursor_shape_device_v1::Shape::Crosshair);
-                    // let cursor_shape_device = state
-                    //     .cursor_shape_manager
-                    //     .as_ref()
-                    //     .unwrap()
-                    //     .get_pointer(state.pointer.as_ref().unwrap(), qh, ());
-                    // cursor_shape_device.set_shape(1, wp_cursor_shape_device_v1::Shape::Crosshair);
-                    // state.cursor_shape_device = Some(cursor_shape_device);
                 }
             }
             // TEST:
@@ -193,11 +183,6 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
                 surface_y,
                 ..
             } => {
-                // println!("鼠标坐标: x: {:.2}, y: {:.2}", surface_x, surface_y);
-                // 保存当前鼠标位置
-                // TEST:
-                // state.action = Some(crate::app::Action::FREEZE);
-
                 state.pointer_helper.current_pos = Some((surface_x.max(0.0), surface_y.max(0.0)));
             }
             _ => {}
@@ -316,31 +301,23 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                     _ => (),
                 }
             }
-            zwlr_screencopy_frame_v1::Event::BufferDone { .. } => {
-                match state.action {
-                    Action::PreLoad => {
-                        // all buffer types are reported, proceed to send copy request
-                        // after copy -> wait for Event::Ready
-                        debug!("copy_event: BufferDone; action: PreLoad");
-                        let Some(buffer) = &state.freeze_mode.buffer else {
-                            return;
-                        };
-                        // copy frame to buffer, sends Ready when successful
-                        proxy.copy(buffer.wl_buffer());
-                    }
-                    Action::GetResult => {
-                        // all buffer types are reported, proceed to send copy request
-                        // after copy -> wait for Event::Ready
-                        debug!("copy_event: BufferDone; action: GetResule");
-                        let Some(buffer) = &state.result_output.buffer else {
-                            return;
-                        };
-                        // copy frame to buffer, sends Ready when successful
-                        proxy.copy(buffer.wl_buffer());
-                    }
-                    _ => (),
+            zwlr_screencopy_frame_v1::Event::BufferDone { .. } => match state.action {
+                Action::PreLoad => {
+                    debug!("copy_event: BufferDone; action: PreLoad");
+                    let Some(buffer) = &state.freeze_mode.buffer else {
+                        return;
+                    };
+                    proxy.copy(buffer.wl_buffer());
                 }
-            }
+                Action::GetResult => {
+                    debug!("copy_event: BufferDone; action: GetResule");
+                    let Some(buffer) = &state.result_output.buffer else {
+                        return;
+                    };
+                    proxy.copy(buffer.wl_buffer());
+                }
+                _ => (),
+            },
             // NOTE: screen is freeze now
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
                 match state.action {
