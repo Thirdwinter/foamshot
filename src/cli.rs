@@ -1,12 +1,12 @@
 use directories::UserDirs;
 use std::path::{Path, PathBuf};
 
-pub struct Config {
+pub struct Cli {
     pub no_cursor: bool,
     pub output_path: PathBuf,
 }
 
-impl Config {
+impl Cli {
     pub fn new() -> Self {
         let mut output_path = if let Some(user_dirs) = UserDirs::new() {
             // 获取用户的图片目录

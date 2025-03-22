@@ -171,7 +171,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for ShotFoam {
                         } else if state.action == Action::AfterSelect {
                             debug!("准备输出到图像");
                             state.pre_output_to_png();
-                            state.action = Action::GetResule;
+                            state.action = Action::GetResult;
                         }
                     }
                 }
@@ -276,6 +276,10 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                 height,
                 stride,
             } => {
+                debug!(
+                    "format:{:?}, width:{}, height:{}, stride:{}",
+                    format, width, height, stride
+                );
                 let (buffer, _canvas) = state
                     .pool
                     .as_mut()
@@ -293,7 +297,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                         debug!("copy_event: buffer; action: PreLoad");
                         state.freeze_mode.buffer = Some(buffer);
                     }
-                    Action::GetResule => {
+                    Action::GetResult => {
                         debug!("copy_event: buffer; action: GetResule");
                         state.result_output.buffer = Some(buffer);
                     }
@@ -312,7 +316,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                         // copy frame to buffer, sends Ready when successful
                         proxy.copy(buffer.wl_buffer());
                     }
-                    Action::GetResule => {
+                    Action::GetResult => {
                         // all buffer types are reported, proceed to send copy request
                         // after copy -> wait for Event::Ready
                         debug!("copy_event: BufferDone; action: GetResule");
@@ -334,7 +338,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, ()> for ShotFoam 
                         // TODO:
                         state.create_select_buffer();
                     }
-                    Action::GetResule => {
+                    Action::GetResult => {
                         debug!("copy_event: Ready; action: GetResule");
                         state.output_to_png();
                     }

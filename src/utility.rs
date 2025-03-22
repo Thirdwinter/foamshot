@@ -8,7 +8,7 @@ pub enum Action {
     Freeze,
     Onselect,
     AfterSelect,
-    GetResule,
+    GetResult,
     Exit,
 }
 

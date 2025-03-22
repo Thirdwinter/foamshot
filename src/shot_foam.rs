@@ -13,7 +13,7 @@ use wayland_protocols::wp::cursor_shape::v1::client::{
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::{self};
 
 use crate::{
-    config::Config, freeze_mode::FreezeMode, result_output::ResultOutput, select_mode::SelectMode,
+    cli::Cli, freeze_mode::FreezeMode, result_output::ResultOutput, select_mode::SelectMode,
     utility::Action,
 };
 
@@ -43,7 +43,7 @@ pub struct ShotFoam {
 
     pub result_output: ResultOutput,
 
-    pub config: Config,
+    pub config: Cli,
 }
 
 pub fn run_main_loop() -> Result<(), Box<dyn std::error::Error>> {

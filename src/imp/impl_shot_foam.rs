@@ -13,7 +13,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 };
 
 use crate::{
-    check_options, config, freeze_mode::FreezeMode, result_output::ResultOutput,
+    check_options, cli, freeze_mode::FreezeMode, result_output::ResultOutput,
     select_mode::SelectMode, shot_foam::ShotFoam, utility::Action,
 };
 
@@ -42,7 +42,7 @@ impl ShotFoam {
             action: Action::PreLoad,
             freeze_mode,
             select_mode,
-            config: config::Config::new(),
+            config: cli::Cli::new(),
             result_output: ResultOutput::default(),
         }
     }
