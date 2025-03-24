@@ -1,13 +1,9 @@
 mod cli;
-mod freeze_mode;
+mod foam_shot;
 mod imp;
-mod pointer_helper;
-mod result_output;
-mod select_mode;
-mod shot_foam;
-mod utility;
-
+mod mode;
+mod wayland_ctx;
 fn main() {
     env_logger::init();
-    shot_foam::run_main_loop().unwrap();
+    foam_shot::run_main_loop();
 }

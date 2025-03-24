@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 pub struct Cli {
     pub no_cursor: bool,
     pub output_path: PathBuf,
+    pub quickshot: bool,
 }
 
 impl Cli {
@@ -33,6 +34,7 @@ impl Cli {
         Self {
             no_cursor: false,
             output_path,
+            quickshot: true,
         }
     }
 }

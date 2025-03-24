@@ -1,2 +1,1 @@
-mod impl_shot_foam;
-mod impl_shot_foam_dispatch;
+mod impl_foam_shot;
