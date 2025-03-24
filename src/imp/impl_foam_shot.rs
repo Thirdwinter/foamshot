@@ -73,18 +73,18 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             .cursor_shape_manager
                             .clone()
                             .unwrap()
-                            .get_pointer(&state.wayland_ctx.pointer.as_ref().unwrap(), qh, ()),
+                            .get_pointer(state.wayland_ctx.pointer.as_ref().unwrap(), qh, ()),
                     )
                 }
             }
             wl_registry::Event::GlobalRemove { .. } => {
-                if let Some(_) = &state.wayland_ctx.compositor {
+                if state.wayland_ctx.compositor.is_some() {
                     state.wayland_ctx.compositor = None;
                 } else if let Some(_seat_name) = &state.wayland_ctx.seat {
                     state.wayland_ctx.seat = None;
                 } else if let Some(_shm_name) = &state.wayland_ctx.shm {
                     state.wayland_ctx.shm = None;
-                } else if let Some(_) = &state.wayland_ctx.layer_shell {
+                } else if state.wayland_ctx.layer_shell.is_some() {
                     state.wayland_ctx.layer_shell = None;
                 }
             }
@@ -163,32 +163,25 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     if button_state
                         == wayland_client::WEnum::Value(wl_pointer::ButtonState::Pressed)
                     {
-                        match state.mode {
-                            Mode::Await => {
-                                state.wayland_ctx.start_pos = Some((x, y));
-                                state.mode = Mode::OnDraw;
-                            }
-                            _ => {}
+                        if let Mode::Await = state.mode {
+                            state.wayland_ctx.start_pos = Some((x, y));
+                            state.mode = Mode::OnDraw;
                         }
                     } else if button_state
                         == wayland_client::WEnum::Value(wl_pointer::ButtonState::Released)
                     {
-                        match state.mode {
-                            Mode::OnDraw => {
-                                state.wayland_ctx.end_pos = Some((x, y));
-                                if !state.cli.quickshot {
-                                    state.mode = Mode::ShowResult;
-                                } else {
-                                    state.mode = Mode::Output(CopyHook::Request)
-                                }
+                        if let Mode::OnDraw = state.mode {
+                            state.wayland_ctx.end_pos = Some((x, y));
+                            if state.cli.quickshot {
+                                state.mode = Mode::Output(CopyHook::Request)
+                            } else {
+                                state.mode = Mode::ShowResult;
                             }
-                            _ => {}
                         }
                     }
                 } else {
                     // FIX:
                     debug!("no pos");
-                    return;
                 }
             }
             wl_pointer::Event::Motion {
@@ -197,12 +190,9 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 time,
             } => {
                 state.wayland_ctx.current_pos = Some((surface_x.max(0.0), surface_y.max(0.0)));
-                match state.wayland_ctx.start_pos {
-                    None => {
-                        state.wayland_ctx.start_pos =
-                            Some((surface_x.max(0.0), surface_y.max(0.0)));
-                    }
-                    _ => (),
+                if state.wayland_ctx.start_pos.is_none() {
+                    state.wayland_ctx.start_pos =
+                        Some((surface_x.max(0.0), surface_y.max(0.0)));
                 }
             }
             _ => {}
@@ -220,33 +210,28 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        match event {
-            wl_keyboard::Event::Key {
+        if let wl_keyboard::Event::Key {
                 serial: _,
                 time: _,
                 key,
                 state: key_state,
-            } => match key_state {
-                wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) => match state.mode {
-                    Mode::ShowResult => {
-                        if key == 1 {
-                            state.mode = Mode::PreSelect;
-                        } else {
-                            return;
-                        }
+            } = event { match key_state {
+            wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) => match state.mode {
+                Mode::ShowResult => {
+                    if key == 1 {
+                        state.mode = Mode::PreSelect;
+                    } else {
                     }
-                    _ => {
-                        if key == 1 {
-                            std::process::exit(0);
-                        } else {
-                            return;
-                        }
+                }
+                _ => {
+                    if key == 1 {
+                        std::process::exit(0);
+                    } else {
                     }
-                },
-                _ => return,
+                }
             },
-            _ => {}
-        }
+            _ => (),
+        } }
     }
 }
 

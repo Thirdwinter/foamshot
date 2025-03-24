@@ -13,6 +13,7 @@ use wayland_protocols_wlr::{
 use crate::wayland_ctx::WaylandCtx;
 
 #[derive(Default)]
+#[allow(unused)]
 pub struct SelectMode {
     pub surface: Option<wl_surface::WlSurface>,
     pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
@@ -33,8 +34,8 @@ impl SelectMode {
         self.surface.as_ref().unwrap().commit();
 
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
-            &wl_ctx.layer_shell.as_ref().unwrap(),
-            &self.surface.as_ref().unwrap(),
+            wl_ctx.layer_shell.as_ref().unwrap(),
+            self.surface.as_ref().unwrap(),
             wl_ctx.output.as_ref(),
             Layer::Overlay,
             "foam_select".to_string(),
@@ -57,9 +58,9 @@ impl SelectMode {
     pub fn on(&mut self, wl_ctx: &mut WaylandCtx) {
         match wl_ctx
             .create_buffer(
-                wl_ctx.width.unwrap() as i32,
-                wl_ctx.height.unwrap() as i32,
-                wl_ctx.width.unwrap() as i32 * 4,
+                wl_ctx.width.unwrap(),
+                wl_ctx.height.unwrap(),
+                wl_ctx.width.unwrap() * 4,
                 Format::Argb8888,
             )
             .ok()
@@ -85,8 +86,8 @@ impl SelectMode {
                 self.surface.as_ref().unwrap().damage(
                     0,
                     0,
-                    wl_ctx.width.unwrap() as i32,
-                    wl_ctx.height.unwrap() as i32,
+                    wl_ctx.width.unwrap(),
+                    wl_ctx.height.unwrap(),
                 );
                 self.surface.as_ref().unwrap().commit();
                 debug!("wait for select");

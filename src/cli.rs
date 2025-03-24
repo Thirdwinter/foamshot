@@ -1,5 +1,24 @@
+use chrono::Local;
+use clap::Parser;
 use directories::UserDirs;
-use std::path::{Path, PathBuf};
+use log::info;
+use std::path::PathBuf; // 引入 chrono 库用于时间处理
+
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct CliArgs {
+    /// show cursor when screen freeze, default to false
+    #[arg(long, default_value_t = false)]
+    show_cursor: bool,
+
+    /// output path, default to xdg user picture dir, supports format specifiers like %Y, %m, %d, %H, %M, %S
+    #[arg(short, long)]
+    output_path: Option<PathBuf>,
+
+    /// disable quickshot, default to true
+    #[arg(long = "no-quickshot")]
+    no_quickshot: bool,
+}
 
 pub struct Cli {
     pub no_cursor: bool,
@@ -9,32 +28,53 @@ pub struct Cli {
 
 impl Cli {
     pub fn new() -> Self {
-        let mut output_path = if let Some(user_dirs) = UserDirs::new() {
-            // 获取用户的图片目录
-            user_dirs
-                .picture_dir()
-                .unwrap_or_else(|| Path::new("."))
-                .to_path_buf()
-        } else {
-            // 如果无法获取用户目录，使用当前目录作为回退
-            PathBuf::from(".")
-        };
+        let args = CliArgs::parse();
 
-        // 获取当前时间戳（以秒为单位）
-        let start = std::time::SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(std::time::UNIX_EPOCH)
-            .expect("Time went backwards");
-        let timestamp = since_the_epoch.as_secs();
+        // 动态生成默认输出路径（如果未提供）
+        let output_path = args
+            .output_path
+            .map(Self::format_path)
+            .unwrap_or_else(Self::generate_default_output_path);
 
-        // 构造完整的输出路径
-        output_path.push(format!("foam_shot_{}.png", timestamp));
-        println!("Output path: {}", output_path.display());
-
-        Self {
-            no_cursor: false,
+        Cli {
+            no_cursor: !args.show_cursor,
             output_path,
-            quickshot: true,
+            quickshot: !args.no_quickshot,
         }
+    }
+
+    fn format_path(path: PathBuf) -> PathBuf {
+        let path_str = path.to_string_lossy().to_string();
+        let formatted_path = Self::replace_time_specifiers(&path_str);
+        PathBuf::from(formatted_path)
+    }
+
+    fn replace_time_specifiers(path_str: &str) -> String {
+        let now = Local::now();
+        let mut formatted = path_str.to_string();
+
+        formatted = formatted.replace("%Y", &now.format("%Y").to_string());
+        formatted = formatted.replace("%m", &now.format("%m").to_string());
+        formatted = formatted.replace("%d", &now.format("%d").to_string());
+        formatted = formatted.replace("%H", &now.format("%H").to_string());
+        formatted = formatted.replace("%M", &now.format("%M").to_string());
+        formatted = formatted.replace("%S", &now.format("%S").to_string());
+
+        formatted
+    }
+
+    fn generate_default_output_path() -> PathBuf {
+        let mut path = UserDirs::new()
+            .and_then(|ud| ud.picture_dir().map(|p| p.to_path_buf()))
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        // 生成格式化的时间字符串
+        let now = Local::now();
+        let time_str = now.format("%Y-%m-%d-%H-%M-%S").to_string();
+
+        path.push(format!("foam_shot-{}.png", time_str));
+        info!("output path: {}", path.display());
+
+        path
     }
 }

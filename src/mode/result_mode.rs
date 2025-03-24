@@ -2,12 +2,12 @@ use std::io::Write;
 
 use cairo::ImageSurface;
 use log::debug;
-use smithay_client_toolkit::shm;
 use smithay_client_toolkit::shm::slot::Buffer;
 
 use crate::wayland_ctx::WaylandCtx;
 
 #[derive(Default)]
+#[allow(unused)]
 pub struct ResultMode {
     pub quickshot: bool,
     pub buffer: Option<Buffer>,
@@ -61,44 +61,41 @@ impl ResultMode {
 
             let _screencopy_frame = screencopy_manager.capture_output_region(
                 false as i32,
-                &output,
+                output,
                 x as i32,      // 修正后的起始x坐标
                 y as i32,      // 修正后的起始y坐标
                 width as i32,  // 保证至少为1的宽度
                 height as i32, // 保证至少为1的高度
-                &qh,
+                qh,
                 (),
             );
         }
     }
 
     pub fn to_png(&mut self, path: std::path::PathBuf, wl_ctx: &mut WaylandCtx) {
-        match &self.buffer {
-            Some(buffer) => {
-                let canvas = buffer
-                    .canvas(wl_ctx.pool.as_mut().unwrap())
-                    .expect("get canvas");
-                let cairo_surface = unsafe {
-                    ImageSurface::create_for_data(
-                        std::slice::from_raw_parts_mut(canvas.as_mut_ptr(), canvas.len()),
-                        cairo::Format::Rgb24,
-                        self.width.unwrap(),
-                        self.height.unwrap(),
-                        self.width.unwrap() * 4,
-                    )
-                    .map_err(|e| format!("Failed to create Cairo surface: {}", e))
-                    .unwrap()
-                };
-                // let output_path = &self.cli.output_path;
-                let file = std::fs::File::create(&path).unwrap();
-                let mut buffer_writer = std::io::BufWriter::new(file);
-                cairo_surface
-                    .write_to_png(&mut buffer_writer)
-                    .expect("write png");
-                buffer_writer.flush().unwrap();
-                std::process::exit(0);
-            }
-            None => {}
+        if let Some(buffer) = &self.buffer {
+            let canvas = buffer
+                .canvas(wl_ctx.pool.as_mut().unwrap())
+                .expect("get canvas");
+            let cairo_surface = unsafe {
+                ImageSurface::create_for_data(
+                    std::slice::from_raw_parts_mut(canvas.as_mut_ptr(), canvas.len()),
+                    cairo::Format::Rgb24,
+                    self.width.unwrap(),
+                    self.height.unwrap(),
+                    self.width.unwrap() * 4,
+                )
+                .map_err(|e| format!("Failed to create Cairo surface: {}", e))
+                .unwrap()
+            };
+            // let output_path = &self.cli.output_path;
+            let file = std::fs::File::create(&path).unwrap();
+            let mut buffer_writer = std::io::BufWriter::new(file);
+            cairo_surface
+                .write_to_png(&mut buffer_writer)
+                .expect("write png");
+            buffer_writer.flush().unwrap();
+            std::process::exit(0);
         }
     }
 }

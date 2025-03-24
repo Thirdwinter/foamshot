@@ -1,4 +1,4 @@
-# shot_foam
+# foam_shot
 
 A lightweight screenshot utility based on the Wayland screen capture protocol (`wlroots` extension protocol).
 
@@ -11,9 +11,32 @@ A lightweight screenshot utility based on the Wayland screen capture protocol (`
 - 🔍 **Area Selection Capture**: Interactive screen region selection with PNG output
 
 ---
+
+## Usage
+
+```
+cli Options:
+      --show-cursor                show cursor when screen freeze, default to false
+  -o, --output-path <OUTPUT_PATH>  output path, default to xdg user picture dir, supports format specifiers like %Y, %m, %d, %H, %M, 
+%S
+      --no-quickshot               disable quickshot, default to true
+  -h, --help                       Print help
+  -V, --version                    Print version
+```
+* When in quick mode, output and exit directly after selection is completed.
+* Edit mode is under development.
+
+---
+
+## Known issues
+
+1. If you enter freeze mode and click directly without moving the mouse, you cannot take a screenshot(In subsequent development, a new method for obtaining mouse coordinates will be used).
+
+---
+---
 ## Roadmap
 - [ ] **Multi-monitor coordinated capture**
 - [ ] **Cross-compositor compatibility layer**
-- [ ] **CLI parameters**
+- [x] **CLI parameters**
 - [ ] **Quick-edit mode**
 - [ ] **Multi-modal operations**

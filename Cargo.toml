@@ -1,6 +1,6 @@
 [package]
 name = "foam_shot"
-version = "0.1.0"
+version = "0.0.2"
 edition = "2024"
 
 [profile.release]
@@ -19,4 +19,5 @@ cairo-rs = {version ="0.20.7", features = ["png"] }
 env_logger = "0.11.6"
 log = "0.4.26"
 directories = "6.0.0"
-
+clap = { version = "4.5.32", features = ["derive"] }
+chrono = "0.4.40"

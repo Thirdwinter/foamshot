@@ -40,15 +40,15 @@ impl FreezeMode {
         // NOTE: 发起屏幕copy请求
         debug!("发起屏幕copy请求");
         self.screencopy_frame = Some(wl_ctx.screencopy_manager.as_ref().unwrap().capture_output(
-            true as i32,
+            !self.hide_cursor as i32,
             wl_ctx.output.as_ref().unwrap(),
             &wl_ctx.qh.clone().unwrap(),
             (),
         ));
         // 创建 layer
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
-            &wl_ctx.layer_shell.as_ref().unwrap(),
-            &self.surface.as_ref().unwrap(),
+            wl_ctx.layer_shell.as_ref().unwrap(),
+            self.surface.as_ref().unwrap(),
             wl_ctx.output.as_ref(),
             Layer::Overlay,
             "foam_freeze".to_string(),
