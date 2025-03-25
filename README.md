@@ -17,14 +17,16 @@ A lightweight screenshot utility based on the Wayland screen capture protocol (`
 ```
 cli Options:
       --show-cursor                show cursor when screen freeze, default to false
-  -o, --output-path <OUTPUT_PATH>  output path, default to xdg user picture dir, supports format specifiers like %Y, %m, %d, %H, %M, 
-%S
+  -o, --output-path <OUTPUT_PATH>  output path, default to xdg user picture dir, supports format specifiers like %Y, %m, %d, %H, %M, %S
       --no-quickshot               disable quickshot, default to true
+      --no-copy                    
   -h, --help                       Print help
   -V, --version                    Print version
 ```
 * When in quick mode, output and exit directly after selection is completed.
 * Edit mode is under development.
+* in hyprland,like `bind = $mainMod, A, exec, $HOME/.cargo/bin/foam_shot -o /home/username/Pictures/Screenshots/foam_shot-%Y-%m-%d_%H-%M-%S.png
+`
 
 ---
 

@@ -191,8 +191,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
             } => {
                 state.wayland_ctx.current_pos = Some((surface_x.max(0.0), surface_y.max(0.0)));
                 if state.wayland_ctx.start_pos.is_none() {
-                    state.wayland_ctx.start_pos =
-                        Some((surface_x.max(0.0), surface_y.max(0.0)));
+                    state.wayland_ctx.start_pos = Some((surface_x.max(0.0), surface_y.max(0.0)));
                 }
             }
             _ => {}
@@ -211,27 +210,25 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         qh: &wayland_client::QueueHandle<Self>,
     ) {
         if let wl_keyboard::Event::Key {
-                serial: _,
-                time: _,
-                key,
-                state: key_state,
-            } = event { match key_state {
-            wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) => match state.mode {
+            serial: _,
+            time: _,
+            key,
+            state: key_state,
+        } = event
+        {
+            if let wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) = key_state { match state.mode {
                 Mode::ShowResult => {
                     if key == 1 {
                         state.mode = Mode::PreSelect;
-                    } else {
-                    }
+                    } 
                 }
                 _ => {
                     if key == 1 {
                         std::process::exit(0);
-                    } else {
-                    }
+                    } 
                 }
-            },
-            _ => (),
-        } }
+            } }
+        }
     }
 }
 
@@ -450,3 +447,65 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for FoamShot {
         }
     }
 }
+// // TODO:
+// impl Dispatch<wl_data_source::WlDataSource, ()> for FoamShot {
+//     fn event(
+//         state: &mut Self,
+//         proxy: &wl_data_source::WlDataSource,
+//         event: <wl_data_source::WlDataSource as Proxy>::Event,
+//         data: &(),
+//         conn: &wayland_client::Connection,
+//         qh: &wayland_client::QueueHandle<Self>,
+//     ) {
+//         match event {
+//             wl_data_source::Event::DndDropPerformed => {}
+//             wl_data_source::Event::DndFinished => {}
+//             wl_data_source::Event::Target { mime_type } => {
+//                 println!("tagert mime_type: {}", mime_type.unwrap());
+//             }
+//             wl_data_source::Event::Send { mime_type, fd } => {
+//                 println!("send mime_type: {}", mime_type);
+//                 let mut file = File::open("/home/thirdwinter/Pictures/wallpapers/Anime-Girl2.png")
+//                     .expect("Failed to open PNG file");
+//                 let mut buffer = Vec::new();
+//                 file.read_to_end(&mut buffer)
+//                     .expect("Failed to read PNG file");
+//
+//                 // 将PNG数据写入文件描述符
+//                 let fd: RawFd = fd.as_raw_fd();
+//                 let mut file = unsafe { File::from_raw_fd(fd) };
+//                 file.write_all(&buffer)
+//                     .expect("Failed to write to file descriptor");
+//
+//                 // 防止 Rust 自动关闭文件描述符
+//                 std::mem::forget(file);
+//             }
+//             _ => (),
+//         }
+//     }
+// }
+//
+// impl Dispatch<wl_data_device_manager::WlDataDeviceManager, ()> for FoamShot {
+//     fn event(
+//         state: &mut Self,
+//         proxy: &wl_data_device_manager::WlDataDeviceManager,
+//         event: <wl_data_device_manager::WlDataDeviceManager as Proxy>::Event,
+//         data: &(),
+//         conn: &wayland_client::Connection,
+//         qhandle: &wayland_client::QueueHandle<Self>,
+//     ) {
+//         // todo!()
+//     }
+// }
+// impl Dispatch<WlDataDevice, ()> for FoamShot {
+//     fn event(
+//         state: &mut Self,
+//         proxy: &WlDataDevice,
+//         event: <WlDataDevice as Proxy>::Event,
+//         data: &(),
+//         conn: &wayland_client::Connection,
+//         qhandle: &wayland_client::QueueHandle<Self>,
+//     ) {
+//         // todo!()
+//     }
+// }

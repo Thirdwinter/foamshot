@@ -1,9 +1,11 @@
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 use cairo::ImageSurface;
 use log::debug;
 use smithay_client_toolkit::shm::slot::Buffer;
 
+use crate::cli::Cli;
 use crate::wayland_ctx::WaylandCtx;
 
 #[derive(Default)]
@@ -72,29 +74,54 @@ impl ResultMode {
         }
     }
 
-    pub fn to_png(&mut self, path: std::path::PathBuf, wl_ctx: &mut WaylandCtx) {
+    pub fn to_png(&mut self, cli: &mut Cli, wl_ctx: &mut WaylandCtx) {
         if let Some(buffer) = &self.buffer {
             let canvas = buffer
                 .canvas(wl_ctx.pool.as_mut().unwrap())
                 .expect("get canvas");
             let cairo_surface = unsafe {
-                ImageSurface::create_for_data(
-                    std::slice::from_raw_parts_mut(canvas.as_mut_ptr(), canvas.len()),
+                ImageSurface::create_for_data_unsafe(
+                    canvas.as_mut_ptr(),
                     cairo::Format::Rgb24,
                     self.width.unwrap(),
                     self.height.unwrap(),
                     self.width.unwrap() * 4,
                 )
-                .map_err(|e| format!("Failed to create Cairo surface: {}", e))
                 .unwrap()
             };
             // let output_path = &self.cli.output_path;
-            let file = std::fs::File::create(&path).unwrap();
+            let file = std::fs::File::create(&cli.output_path).unwrap();
             let mut buffer_writer = std::io::BufWriter::new(file);
             cairo_surface
                 .write_to_png(&mut buffer_writer)
                 .expect("write png");
             buffer_writer.flush().unwrap();
+
+            // TODO: use better method to copy to clipboard
+            // Write image to clipboard
+            if cli.auto_copy {
+                let mut png_data = Vec::new();
+                cairo_surface
+                    .write_to_png(&mut png_data)
+                    .expect("write png to vec");
+
+                let mut process = Command::new("wl-copy")
+                    .arg("--type")
+                    .arg("image/png")
+                    .stdin(Stdio::piped())
+                    .spawn()
+                    .expect("failed to execute wl-copy");
+
+                {
+                    let stdin = process.stdin.as_mut().expect("failed to open stdin");
+                    stdin
+                        .write_all(&png_data)
+                        .expect("failed to write to stdin");
+                }
+
+                process.wait().expect("failed to wait on wl-copy process");
+            }
+
             std::process::exit(0);
         }
     }

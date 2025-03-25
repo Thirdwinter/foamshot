@@ -18,12 +18,22 @@ struct CliArgs {
     /// disable quickshot, default to true
     #[arg(long = "no-quickshot")]
     no_quickshot: bool,
+
+    #[arg(long, default_value_t = false)]
+    no_copy: bool,
 }
 
 pub struct Cli {
     pub no_cursor: bool,
     pub output_path: PathBuf,
     pub quickshot: bool,
+    pub auto_copy: bool,
+}
+
+impl Default for Cli {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Cli {
@@ -40,6 +50,7 @@ impl Cli {
             no_cursor: !args.show_cursor,
             output_path,
             quickshot: !args.no_quickshot,
+            auto_copy: !args.no_copy,
         }
     }
 

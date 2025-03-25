@@ -74,10 +74,9 @@ pub fn run_main_loop() {
                 shot_foam.result_mode.before(&mut shot_foam.wayland_ctx);
             }
             Mode::Output(CopyHook::Ready) => {
-                shot_foam.result_mode.to_png(
-                    shot_foam.cli.output_path.clone(),
-                    &mut shot_foam.wayland_ctx,
-                );
+                shot_foam
+                    .result_mode
+                    .to_png(&mut shot_foam.cli, &mut shot_foam.wayland_ctx);
                 shot_foam.mode = Mode::Exit;
             }
             Mode::Exit => {
