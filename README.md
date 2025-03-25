@@ -24,6 +24,7 @@ cli Options:
   -V, --version                    Print version
 ```
 * When in quick mode, output and exit directly after selection is completed.
+* When the screen is frozen and waiting for the mouse to be pressed, press the `a` key to quickly capture the full screen.
 * Edit mode is under development.
 * in hyprland,like `bind = $mainMod, A, exec, $HOME/.cargo/bin/foam_shot -o /home/username/Pictures/Screenshots/foam_shot-%Y-%m-%d_%H-%M-%S.png
 `
