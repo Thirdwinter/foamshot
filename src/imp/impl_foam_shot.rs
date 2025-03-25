@@ -1,15 +1,11 @@
+
 use log::debug;
 use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
 use wayland_client::{
     Dispatch, Proxy,
-    globals::GlobalListContents,
-    protocol::{
-        wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
-    },
+    protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat},
 };
-use wayland_protocols::wp::cursor_shape::v1::client::{
-    wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
-};
+use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_manager_v1;
 use wayland_protocols_wlr::{
     layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
     screencopy::v1::client::{
@@ -173,7 +169,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                         if let Mode::OnDraw = state.mode {
                             state.wayland_ctx.end_pos = Some((x, y));
                             if state.cli.quickshot {
-                                state.mode = Mode::Output(CopyHook::Request)
+                                state.mode = Mode::Output
                             } else {
                                 state.mode = Mode::ShowResult;
                             }
@@ -216,85 +212,28 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
             state: key_state,
         } = event
         {
-            if let wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) = key_state { match state.mode {
-                Mode::ShowResult => {
-                    if key == 1 {
-                        state.mode = Mode::PreSelect;
-                    } 
+            if let wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) = key_state {
+                println!("{}", key);
+                match state.mode {
+                    Mode::ShowResult => {
+                        if key == 1 {
+                            state.mode = Mode::PreSelect;
+                        }
+                    }
+                    Mode::Await => {
+                        if key == 30 {
+                            println!("full screen");
+                            state.result_mode.full_screen = true;
+                            state.mode = Mode::Output;
+                        }
+                        if key == 1 {
+                            state.mode = Mode::Exit;
+                        }
+                    }
+                    _ => {}
                 }
-                _ => {
-                    if key == 1 {
-                        std::process::exit(0);
-                    } 
-                }
-            } }
+            }
         }
-    }
-}
-
-impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
-        _event: <zwlr_layer_shell_v1::ZwlrLayerShellV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &wayland_client::Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
-        // todo!()
-    }
-}
-// NOTE: 空实现
-impl Dispatch<ZwlrScreencopyManagerV1, ()> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &ZwlrScreencopyManagerV1,
-        _event: <ZwlrScreencopyManagerV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &wayland_client::Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        // todo!()
-    }
-}
-
-impl Dispatch<wl_seat::WlSeat, ()> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wl_seat::WlSeat,
-        _event: <wl_seat::WlSeat as Proxy>::Event,
-        _data: &(),
-        _conn: &wayland_client::Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
-        // todo!()
-    }
-}
-
-impl Dispatch<wl_compositor::WlCompositor, ()> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wl_compositor::WlCompositor,
-        _event: <wl_compositor::WlCompositor as wayland_client::Proxy>::Event,
-        _data: &(),
-        _conn: &wayland_client::Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
-        // todo!()
-    }
-}
-
-// NOTE: unimplemented
-impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wl_registry::WlRegistry,
-        _event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        _data: &GlobalListContents,
-        _conn: &wayland_client::Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        // todo!()
     }
 }
 
@@ -336,23 +275,25 @@ impl Dispatch<ZwlrScreencopyFrameV1, ()> for FoamShot {
                     mode::Mode::Freeze(mode::CopyHook::Request) => {
                         state.freeze_mode.buffer = buffer;
                     }
-                    Mode::Output(CopyHook::Request) => {
-                        state.result_mode.buffer = buffer;
-                    }
+                    // Mode::Output(CopyHook::Request) => {
+                    //     state.result_mode.buffer = buffer;
+                    // }
                     _ => {}
                 }
             }
             zwlr_screencopy_frame_v1::Event::BufferDone { .. } => match state.mode {
                 Mode::Freeze(CopyHook::Request) => {
                     proxy.copy(state.freeze_mode.buffer.as_mut().unwrap().wl_buffer());
+
+                    state.result_mode.screencopy_frame = Some(proxy.clone());
                     state.mode = mode::Mode::Freeze(mode::CopyHook::BufferDone);
                     debug!("set BeforeFreeze");
                 }
-                Mode::Output(CopyHook::Request) => {
-                    proxy.copy(state.result_mode.buffer.as_mut().unwrap().wl_buffer());
-                    state.mode = mode::Mode::Output(mode::CopyHook::BufferDone);
-                    debug!("set Output");
-                }
+                // Mode::Output(CopyHook::Request) => {
+                //     proxy.copy(state.result_mode.buffer.as_mut().unwrap().wl_buffer());
+                //     state.mode = mode::Mode::Output(mode::CopyHook::BufferDone);
+                //     debug!("set Output");
+                // }
                 _ => (),
             },
             // NOTE: screen is freeze now
@@ -364,10 +305,10 @@ impl Dispatch<ZwlrScreencopyFrameV1, ()> for FoamShot {
                         state.mode = mode::Mode::Freeze(mode::CopyHook::Ready);
                         debug!("set Freeze");
                     }
-                    Mode::Output(CopyHook::BufferDone) => {
-                        state.mode = mode::Mode::Output(mode::CopyHook::Ready);
-                        debug!("set Output");
-                    }
+                    // Mode::Output(CopyHook::BufferDone) => {
+                    //     state.mode = mode::Mode::Output(mode::CopyHook::Ready);
+                    //     debug!("set Output");
+                    // }
                     _ => (),
                 }
             }
@@ -378,49 +319,13 @@ impl Dispatch<ZwlrScreencopyFrameV1, ()> for FoamShot {
         }
     }
 }
-impl Dispatch<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, ()> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
-        _event: <wp_cursor_shape_manager_v1::WpCursorShapeManagerV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &wayland_client::Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        todo!()
-    }
-}
-impl Dispatch<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1, ()> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wp_cursor_shape_device_v1::WpCursorShapeDeviceV1,
-        _event: <wp_cursor_shape_device_v1::WpCursorShapeDeviceV1 as Proxy>::Event,
-        _data: &(),
-        _conn: &wayland_client::Connection,
-        _qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-        // todo!()
-    }
-}
+
 impl ShmHandler for FoamShot {
     fn shm_state(&mut self) -> &mut smithay_client_toolkit::shm::Shm {
         self.wayland_ctx.shm.as_mut().unwrap()
     }
 }
 delegate_shm!(FoamShot);
-
-impl Dispatch<wl_surface::WlSurface, i32> for FoamShot {
-    fn event(
-        _state: &mut Self,
-        _proxy: &wl_surface::WlSurface,
-        _event: <wl_surface::WlSurface as wayland_client::Proxy>::Event,
-        _data: &i32,
-        _conn: &wayland_client::Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
-        // todo!()
-    }
-}
 
 impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for FoamShot {
     fn event(
@@ -447,65 +352,3 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for FoamShot {
         }
     }
 }
-// // TODO:
-// impl Dispatch<wl_data_source::WlDataSource, ()> for FoamShot {
-//     fn event(
-//         state: &mut Self,
-//         proxy: &wl_data_source::WlDataSource,
-//         event: <wl_data_source::WlDataSource as Proxy>::Event,
-//         data: &(),
-//         conn: &wayland_client::Connection,
-//         qh: &wayland_client::QueueHandle<Self>,
-//     ) {
-//         match event {
-//             wl_data_source::Event::DndDropPerformed => {}
-//             wl_data_source::Event::DndFinished => {}
-//             wl_data_source::Event::Target { mime_type } => {
-//                 println!("tagert mime_type: {}", mime_type.unwrap());
-//             }
-//             wl_data_source::Event::Send { mime_type, fd } => {
-//                 println!("send mime_type: {}", mime_type);
-//                 let mut file = File::open("/home/thirdwinter/Pictures/wallpapers/Anime-Girl2.png")
-//                     .expect("Failed to open PNG file");
-//                 let mut buffer = Vec::new();
-//                 file.read_to_end(&mut buffer)
-//                     .expect("Failed to read PNG file");
-//
-//                 // 将PNG数据写入文件描述符
-//                 let fd: RawFd = fd.as_raw_fd();
-//                 let mut file = unsafe { File::from_raw_fd(fd) };
-//                 file.write_all(&buffer)
-//                     .expect("Failed to write to file descriptor");
-//
-//                 // 防止 Rust 自动关闭文件描述符
-//                 std::mem::forget(file);
-//             }
-//             _ => (),
-//         }
-//     }
-// }
-//
-// impl Dispatch<wl_data_device_manager::WlDataDeviceManager, ()> for FoamShot {
-//     fn event(
-//         state: &mut Self,
-//         proxy: &wl_data_device_manager::WlDataDeviceManager,
-//         event: <wl_data_device_manager::WlDataDeviceManager as Proxy>::Event,
-//         data: &(),
-//         conn: &wayland_client::Connection,
-//         qhandle: &wayland_client::QueueHandle<Self>,
-//     ) {
-//         // todo!()
-//     }
-// }
-// impl Dispatch<WlDataDevice, ()> for FoamShot {
-//     fn event(
-//         state: &mut Self,
-//         proxy: &WlDataDevice,
-//         event: <WlDataDevice as Proxy>::Event,
-//         data: &(),
-//         conn: &wayland_client::Connection,
-//         qhandle: &wayland_client::QueueHandle<Self>,
-//     ) {
-//         // todo!()
-//     }
-// }

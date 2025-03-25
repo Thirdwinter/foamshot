@@ -4,7 +4,7 @@ pub mod freeze_mode;
 pub mod result_mode;
 pub mod select_mode;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 #[allow(unused)]
 pub enum Mode {
     Freeze(CopyHook),
@@ -12,7 +12,7 @@ pub enum Mode {
     Await,
     OnDraw,
     ShowResult,
-    Output(CopyHook),
+    Output,
     Exit,
 }
 
@@ -22,7 +22,7 @@ impl Default for Mode {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Hash, Eq)]
 #[allow(unused)]
 pub enum CopyHook {
     #[default]

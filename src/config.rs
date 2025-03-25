@@ -89,3 +89,8 @@ impl Cli {
         path
     }
 }
+
+pub struct Config {
+    pub cli: Cli,
+    pub full_screen_output: bool,
+}

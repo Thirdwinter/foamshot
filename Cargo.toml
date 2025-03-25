@@ -1,6 +1,6 @@
 [package]
 name = "foam_shot"
-version = "0.0.2"
+version = "0.1.1"
 edition = "2024"
 
 [profile.release]
@@ -8,16 +8,16 @@ strip = true
 lto = true
 
 [dependencies]
+env_logger = "0.11.6"
+log = "0.4.26"
+
 wayland-client = "0.31.8"
 wayland-protocols = {version="0.32.6", features = ["client", "unstable", "staging"]}
 wayland-protocols-wlr = { version = "0.3.6", features = ["client"] }
-tempfile = "3.18.0"
 smithay-client-toolkit = "0.19.2"
 cairo-rs = {version ="0.20.7", features = ["png"] }
-# calloop = "0.14.2"
 
-env_logger = "0.11.6"
-log = "0.4.26"
+tempfile = "3.18.0"
 directories = "6.0.0"
 clap = { version = "4.5.32", features = ["derive"] }
 chrono = "0.4.40"

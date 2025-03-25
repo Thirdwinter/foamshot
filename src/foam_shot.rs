@@ -4,12 +4,12 @@ use wayland_client::{Connection, globals::registry_queue_init};
 use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1;
 
 use crate::mode::{CopyHook, Mode, freeze_mode, result_mode, select_mode};
-use crate::{cli, mode, wayland_ctx};
+use crate::{config, mode, wayland_ctx};
 
 pub struct FoamShot {
     pub wayland_ctx: wayland_ctx::WaylandCtx,
 
-    pub cli: cli::Cli,
+    pub cli: config::Cli,
     pub freeze_mode: freeze_mode::FreezeMode,
     pub select_mode: select_mode::SelectMode,
     pub result_mode: result_mode::ResultMode,
@@ -70,13 +70,21 @@ pub fn run_main_loop() {
                 event_queue.roundtrip(&mut shot_foam).unwrap();
             }
             Mode::ShowResult => {}
-            Mode::Output(CopyHook::Request) => {
-                shot_foam.result_mode.before(&mut shot_foam.wayland_ctx);
-            }
-            Mode::Output(CopyHook::Ready) => {
-                shot_foam
-                    .result_mode
-                    .to_png(&mut shot_foam.cli, &mut shot_foam.wayland_ctx);
+            // Mode::Output(CopyHook::Request) => {
+            //     shot_foam.result_mode.to_png_2(
+            //         &mut shot_foam.cli,
+            //         &mut shot_foam.wayland_ctx,
+            //         &mut shot_foam.freeze_mode,
+            //     );
+            //
+            //     // shot_foam.result_mode.before(&mut shot_foam.wayland_ctx);
+            // }
+            Mode::Output => {
+                shot_foam.result_mode.to_png_2(
+                    &mut shot_foam.cli,
+                    &mut shot_foam.wayland_ctx,
+                    &mut shot_foam.freeze_mode,
+                );
                 shot_foam.mode = Mode::Exit;
             }
             Mode::Exit => {
@@ -89,7 +97,7 @@ pub fn run_main_loop() {
 
 impl FoamShot {
     pub fn new(shm: Shm, pool: SlotPool, qh: wayland_client::QueueHandle<FoamShot>) -> FoamShot {
-        let cli = cli::Cli::new();
+        let cli = config::Cli::new();
         Self {
             wayland_ctx: wayland_ctx::WaylandCtx::new(shm, pool, qh),
             freeze_mode: mode::freeze_mode::FreezeMode::new(cli.no_cursor),
@@ -98,5 +106,11 @@ impl FoamShot {
             cli,
             mode: mode::Mode::default(),
         }
+    }
+
+    #[allow(unused)]
+    pub fn test_mode(&mut self) {
+        self.mode = Mode::Await;
+        println!("FoamShot test_mode called; new mode: {:?}", self.mode);
     }
 }

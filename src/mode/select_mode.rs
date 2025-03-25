@@ -7,16 +7,16 @@ use wayland_protocols_wlr::{
         zwlr_layer_shell_v1::{self, Layer},
         zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
     },
-    screencopy::v1::client::zwlr_screencopy_frame_v1,
+    // screencopy::v1::client::zwlr_screencopy_frame_v1,
 };
 
 use crate::wayland_ctx::WaylandCtx;
 
 #[derive(Default)]
-#[allow(unused)]
+// #[allow(unused)]
 pub struct SelectMode {
     pub surface: Option<wl_surface::WlSurface>,
-    pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
+    // pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     pub buffer: Option<Buffer>,
     pub last_pos: (f64, f64),
@@ -77,12 +77,6 @@ impl SelectMode {
                     .unwrap();
                 // self.buffer = Some(buffer);
                 debug!("请求重绘");
-                self.surface.as_ref().unwrap().damage_buffer(
-                    0,
-                    0,
-                    wl_ctx.width.unwrap(),
-                    wl_ctx.height.unwrap(),
-                );
                 self.surface.as_ref().unwrap().damage(
                     0,
                     0,

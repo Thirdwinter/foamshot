@@ -1,4 +1,4 @@
-mod cli;
+mod config;
 mod foam_shot;
 mod imp;
 mod mode;

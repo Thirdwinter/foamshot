@@ -1,128 +1,154 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-use cairo::ImageSurface;
-use log::debug;
+use cairo::{Context, ImageSurface};
+use log::{debug, error};
 use smithay_client_toolkit::shm::slot::Buffer;
+use wayland_protocols_wlr::screencopy::v1::client::zwlr_screencopy_frame_v1;
 
-use crate::cli::Cli;
+use super::freeze_mode::FreezeMode;
+use crate::config::Cli;
 use crate::wayland_ctx::WaylandCtx;
 
 #[derive(Default)]
-#[allow(unused)]
 pub struct ResultMode {
     pub quickshot: bool,
+    pub full_screen: bool,
     pub buffer: Option<Buffer>,
     pub start: Option<(i32, i32)>,
     pub width: Option<i32>,
     pub height: Option<i32>,
+    pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
 }
 
 impl ResultMode {
-    pub fn new(quickshot: bool) -> ResultMode {
-        ResultMode {
+    pub fn new(quickshot: bool) -> Self {
+        Self {
             quickshot,
             buffer: None,
             ..Default::default()
         }
     }
-    pub fn before(&mut self, wl_ctx: &mut WaylandCtx) {
-        if let (
-            Some(screencopy_manager),
-            Some(output),
-            Some(qh),
-            Some((start_x, start_y)),
-            Some((end_x, end_y)),
-        ) = (
-            wl_ctx.screencopy_manager.as_ref(),
-            wl_ctx.output.as_ref(),
-            wl_ctx.qh.as_ref(),
-            wl_ctx.start_pos,
-            wl_ctx.end_pos,
-        ) {
-            // 计算左上角坐标
+
+    /// 计算截图区域。
+    /// 如果 full_screen 为 true 则返回全屏区域，否则根据 WaylandCtx 中的 start_pos 和 end_pos 计算区域。
+    fn calculate_region(&self, wl_ctx: &WaylandCtx) -> Option<(f64, f64, f64, f64)> {
+        if self.full_screen {
+            // 全屏模式下，直接使用屏幕的宽高
+            let (w, h) = (wl_ctx.width?, wl_ctx.height?);
+            Some((0.0, 0.0, w as f64, h as f64))
+        } else {
+            // 非全屏模式，需要通过起始和结束坐标计算区域
+            let (start_x, start_y) = wl_ctx.start_pos?;
+            let (end_x, end_y) = wl_ctx.end_pos?;
             let x = start_x.min(end_x);
             let y = start_y.min(end_y);
-
-            // 计算宽高并确保至少为1
             let mut width = (end_x - start_x).abs();
             let mut height = (end_y - start_y).abs();
-            if width <= 1.0 {
+            // 保证最小尺寸为 1
+            if width < 1.0 {
                 width = 1.0;
             }
-            if height <= 1.0 {
+            if height < 1.0 {
                 height = 1.0;
             }
-            debug!("start_x: {}, start_y: {}", start_x, start_y);
-            debug!("end_x: {}, end_y: {}", end_x, end_y);
-            debug!("x: {}, y: {}", x, y);
-            debug!("width: {}, height: {}", width, height);
-            self.start = Some((x as i32, y as i32));
-            self.width = Some(width as i32);
-            self.height = Some(height as i32);
-
-            let _screencopy_frame = screencopy_manager.capture_output_region(
-                false as i32,
-                output,
-                x as i32,      // 修正后的起始x坐标
-                y as i32,      // 修正后的起始y坐标
-                width as i32,  // 保证至少为1的宽度
-                height as i32, // 保证至少为1的高度
-                qh,
-                (),
-            );
+            Some((x, y, width, height))
         }
     }
 
-    pub fn to_png(&mut self, cli: &mut Cli, wl_ctx: &mut WaylandCtx) {
-        if let Some(buffer) = &self.buffer {
-            let canvas = buffer
-                .canvas(wl_ctx.pool.as_mut().unwrap())
-                .expect("get canvas");
-            let cairo_surface = unsafe {
-                ImageSurface::create_for_data_unsafe(
-                    canvas.as_mut_ptr(),
-                    cairo::Format::Rgb24,
-                    self.width.unwrap(),
-                    self.height.unwrap(),
-                    self.width.unwrap() * 4,
-                )
-                .unwrap()
-            };
-            // let output_path = &self.cli.output_path;
-            let file = std::fs::File::create(&cli.output_path).unwrap();
-            let mut buffer_writer = std::io::BufWriter::new(file);
-            cairo_surface
-                .write_to_png(&mut buffer_writer)
-                .expect("write png");
-            buffer_writer.flush().unwrap();
+    pub fn to_png_2(&mut self, cli: &Cli, wl_ctx: &mut WaylandCtx, freeze_frame: &mut FreezeMode) {
+        // 根据配置计算截图区域
+        let (x, y, width, height) = match self.calculate_region(wl_ctx) {
+            Some(region) => region,
+            None => {
+                error!("无法确定截图区域：缺少必需的屏幕尺寸或区域坐标");
+                return;
+            }
+        };
 
-            // TODO: use better method to copy to clipboard
-            // Write image to clipboard
-            if cli.auto_copy {
-                let mut png_data = Vec::new();
-                cairo_surface
-                    .write_to_png(&mut png_data)
-                    .expect("write png to vec");
+        if let Some(buffer) = freeze_frame.buffer.as_mut() {
+            if let Err(e) = buffer.deactivate() {
+                error!("关闭 buffer 出错：{}", e);
+            }
+        } else {
+            error!("freeze_frame 中未找到 buffer");
+            return;
+        }
 
-                let mut process = Command::new("wl-copy")
-                    .arg("--type")
-                    .arg("image/png")
-                    .stdin(Stdio::piped())
-                    .spawn()
-                    .expect("failed to execute wl-copy");
+        debug!(
+            "截图区域 - x: {}, y: {}, width: {}, height: {}",
+            x as i32, y as i32, width as i32, height as i32
+        );
+        self.start = Some((x as i32, y as i32));
+        self.width = Some(width as i32);
+        self.height = Some(height as i32);
 
-                {
-                    let stdin = process.stdin.as_mut().expect("failed to open stdin");
-                    stdin
-                        .write_all(&png_data)
-                        .expect("failed to write to stdin");
-                }
+        // 从 WaylandCtx 的共享内存中获取 canvas
+        let pool = wl_ctx.pool.as_mut().expect("WaylandCtx 中缺少 pool");
+        let canvas = freeze_frame
+            .buffer
+            .as_ref()
+            .unwrap()
+            .canvas(pool)
+            .expect("获取 canvas 失败");
 
-                process.wait().expect("failed to wait on wl-copy process");
+        let full_width = wl_ctx.width.expect("WaylandCtx 缺少屏幕宽度");
+        let full_height = wl_ctx.height.expect("WaylandCtx 缺少屏幕高度");
+
+        // 为整个画面创建 Cairo ImageSurface
+        let cairo_surface = unsafe {
+            ImageSurface::create_for_data_unsafe(
+                canvas.as_mut_ptr(),
+                cairo::Format::Rgb24,
+                full_width,
+                full_height,
+                full_width * 4,
+            )
+            .expect("创建 Cairo ImageSurface 失败")
+        };
+
+        // 为截取区域创建新的 Cairo ImageSurface
+        let cropped_surface =
+            ImageSurface::create(cairo::Format::Rgb24, width as i32, height as i32)
+                .expect("无法创建截取区域的 surface");
+
+        // 使用新的 Context 将指定区域绘制到 cropped_surface 上
+        let cr = Context::new(&cropped_surface).expect("创建 Cairo 画布失败");
+        cr.set_source_surface(&cairo_surface, -x, -y)
+            .expect("设置绘制区域失败");
+        cr.paint().expect("绘制截取区域失败");
+
+        // 将裁剪后的图像写入 PNG 文件
+        let file = std::fs::File::create(&cli.output_path).expect("无法创建输出文件");
+        let mut buffer_writer = std::io::BufWriter::new(file);
+        cropped_surface
+            .write_to_png(&mut buffer_writer)
+            .expect("写入 PNG 失败");
+        buffer_writer.flush().expect("刷新文件失败");
+
+        // 如果 auto_copy 选项开启，则复制图片到剪贴板
+        if cli.auto_copy {
+            let mut png_data = Vec::new();
+            cropped_surface
+                .write_to_png(&mut png_data)
+                .expect("无法写入 PNG 数据到内存");
+
+            let mut process = Command::new("wl-copy")
+                .arg("--type")
+                .arg("image/png")
+                .stdin(Stdio::piped())
+                .spawn()
+                .expect("启动 wl-copy 进程失败");
+
+            if let Some(stdin) = process.stdin.as_mut() {
+                stdin.write_all(&png_data).expect("写入剪贴板数据失败");
+            } else {
+                error!("无法获取 wl-copy 的标准输入");
             }
 
-            std::process::exit(0);
+            process.wait().expect("等待 wl-copy 进程结束失败");
         }
+
+        // std::process::exit(0);
     }
 }
