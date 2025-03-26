@@ -31,6 +31,13 @@ pub fn run_main_loop() {
 
     event_queue.roundtrip(&mut shot_foam).expect("init failed");
 
+    if let None = shot_foam.wayland_ctx.screencopy_manager {
+        error!("screencopy manager not available");
+        std::process::exit(1);
+    } else {
+        info!("screencopy manager available");
+    }
+
     info!("into loop");
     loop {
         std::thread::sleep(std::time::Duration::from_millis(16));
@@ -45,7 +52,7 @@ pub fn run_main_loop() {
                 // NOTE: see ./imp/impl_foam_shot.rs for details
             }
             Mode::Freeze(CopyHook::Ready) => {
-                shot_foam.freeze_mode.on(&mut shot_foam.wayland_ctx);
+                shot_foam.freeze_mode.set_freeze(&mut shot_foam.wayland_ctx);
 
                 shot_foam.mode = Mode::PreSelect;
             }
@@ -70,15 +77,6 @@ pub fn run_main_loop() {
                 event_queue.roundtrip(&mut shot_foam).unwrap();
             }
             Mode::ShowResult => {}
-            // Mode::Output(CopyHook::Request) => {
-            //     shot_foam.result_mode.to_png_2(
-            //         &mut shot_foam.cli,
-            //         &mut shot_foam.wayland_ctx,
-            //         &mut shot_foam.freeze_mode,
-            //     );
-            //
-            //     // shot_foam.result_mode.before(&mut shot_foam.wayland_ctx);
-            // }
             Mode::Output => {
                 shot_foam.result_mode.to_png_2(
                     &mut shot_foam.cli,
@@ -106,11 +104,5 @@ impl FoamShot {
             cli,
             mode: mode::Mode::default(),
         }
-    }
-
-    #[allow(unused)]
-    pub fn test_mode(&mut self) {
-        self.mode = Mode::Await;
-        println!("FoamShot test_mode called; new mode: {:?}", self.mode);
     }
 }

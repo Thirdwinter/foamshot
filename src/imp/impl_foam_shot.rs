@@ -1,11 +1,12 @@
-
 use log::debug;
 use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
 use wayland_client::{
     Dispatch, Proxy,
     protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat},
 };
-use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_manager_v1;
+use wayland_protocols::{
+    wp::cursor_shape::v1::client::wp_cursor_shape_manager_v1, xdg::shell::client::xdg_wm_base,
+};
 use wayland_protocols_wlr::{
     layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
     screencopy::v1::client::{
@@ -71,6 +72,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             .unwrap()
                             .get_pointer(state.wayland_ctx.pointer.as_ref().unwrap(), qh, ()),
                     )
+                } else if interface == xdg_wm_base::XdgWmBase::interface().name
+                    && state.wayland_ctx.xdg_shell.is_none()
+                {
+                    state.wayland_ctx.xdg_shell = Some(proxy.bind(name, version, qh, ()));
                 }
             }
             wl_registry::Event::GlobalRemove { .. } => {
@@ -347,6 +352,24 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for FoamShot {
             }
             zwlr_layer_surface_v1::Event::Closed => {
                 proxy.destroy();
+            }
+            _ => (),
+        }
+    }
+}
+#[allow(unused_variables)]
+impl Dispatch<xdg_wm_base::XdgWmBase, ()> for FoamShot {
+    fn event(
+        state: &mut Self,
+        proxy: &xdg_wm_base::XdgWmBase,
+        event: <xdg_wm_base::XdgWmBase as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+        match event {
+            xdg_wm_base::Event::Ping { serial } => {
+                state.wayland_ctx.xdg_shell.as_mut().unwrap().pong(serial);
             }
             _ => (),
         }

@@ -6,8 +6,9 @@ use wayland_client::{
     QueueHandle,
     protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm::Format},
 };
-use wayland_protocols::wp::cursor_shape::v1::client::{
-    wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
+use wayland_protocols::{
+    wp::cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1},
+    xdg::shell::client::xdg_wm_base,
 };
 use wayland_protocols_wlr::{
     layer_shell::v1::client::zwlr_layer_shell_v1,
@@ -26,6 +27,7 @@ pub struct WaylandCtx {
     pub pointer: Option<wl_pointer::WlPointer>,
     pub keyboard: Option<wl_keyboard::WlKeyboard>,
     pub layer_shell: Option<zwlr_layer_shell_v1::ZwlrLayerShellV1>,
+    pub xdg_shell: Option<xdg_wm_base::XdgWmBase>,
     pub qh: Option<QueueHandle<FoamShot>>,
 
     pub cursor_shape_manager: Option<wp_cursor_shape_manager_v1::WpCursorShapeManagerV1>,
@@ -49,6 +51,8 @@ impl WaylandCtx {
             ..Default::default()
         }
     }
+
+    /// Create a buffer
     pub fn create_buffer(
         &mut self,
         width: i32,
@@ -65,20 +69,30 @@ impl WaylandCtx {
         Ok((buffer, canvas))
     }
 
+    /// Set the cursor shape
     pub fn set_cursor_shape(&mut self, shape: wp_cursor_shape_device_v1::Shape) {
-        match &self.cursor_shape_device {
-            Some(device) => {
-                device.set_shape(1, shape);
-            }
-            None => {
-                let x = self.cursor_shape_manager.as_ref().unwrap().get_pointer(
-                    self.pointer.as_ref().unwrap(),
-                    self.qh.as_ref().unwrap(),
-                    (),
-                );
-                x.set_shape(1, shape);
-                self.cursor_shape_device = Some(x);
-            }
+        if let Some(device) = &self.cursor_shape_device {
+            device.set_shape(1, shape);
+            return;
         }
+
+        let manager = match self.cursor_shape_manager.as_ref() {
+            Some(manager) => manager,
+            None => return,
+        };
+
+        let pointer = match self.pointer.as_ref() {
+            Some(pointer) => pointer,
+            None => return,
+        };
+
+        let qh = match self.qh.as_ref() {
+            Some(qh) => qh,
+            None => return,
+        };
+
+        let device = manager.get_pointer(pointer, qh, ());
+        device.set_shape(1, shape);
+        self.cursor_shape_device = Some(device);
     }
 }

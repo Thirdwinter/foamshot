@@ -69,7 +69,7 @@ impl FreezeMode {
         debug!("after freeze before hook")
     }
 
-    pub fn on(&mut self, wl_ctx: &mut WaylandCtx) {
+    pub fn set_freeze(&mut self, wl_ctx: &mut WaylandCtx) {
         self.buffer
             .as_ref()
             .unwrap()
@@ -81,6 +81,14 @@ impl FreezeMode {
             .damage(0, 0, wl_ctx.width.unwrap(), wl_ctx.height.unwrap());
         self.surface.as_ref().unwrap().commit();
     }
+
     #[allow(unused)]
-    pub fn after(&mut self) {}
+    pub fn unset_freeze(&mut self, wl_ctx: &mut WaylandCtx) {
+        self.surface.as_mut().unwrap().attach(None, 0, 0);
+        self.surface
+            .as_mut()
+            .unwrap()
+            .damage(0, 0, wl_ctx.width.unwrap(), wl_ctx.height.unwrap());
+        self.surface.as_mut().unwrap().commit();
+    }
 }
