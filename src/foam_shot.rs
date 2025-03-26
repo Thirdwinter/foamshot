@@ -54,7 +54,6 @@ pub fn run_main_loop() {
             }
             Mode::Freeze(CopyHook::Ready) => {
                 if shot_foam.cli.full_screen {
-                    println!("full screen");
                     shot_foam.result_mode.full_screen = true;
                     shot_foam.result_mode.to_png_2(
                         &mut shot_foam.cli,
