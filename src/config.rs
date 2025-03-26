@@ -21,13 +21,18 @@ struct CliArgs {
 
     #[arg(long, default_value_t = false)]
     no_copy: bool,
+
+    #[arg(long, default_value_t = false)]
+    full_screen: bool,
 }
 
+#[derive(Debug)]
 pub struct Cli {
     pub no_cursor: bool,
     pub output_path: PathBuf,
     pub quickshot: bool,
     pub auto_copy: bool,
+    pub full_screen: bool,
 }
 
 impl Default for Cli {
@@ -51,6 +56,7 @@ impl Cli {
             output_path,
             quickshot: !args.no_quickshot,
             auto_copy: !args.no_copy,
+            full_screen: args.full_screen,
         }
     }
 
@@ -88,9 +94,4 @@ impl Cli {
 
         path
     }
-}
-
-pub struct Config {
-    pub cli: Cli,
-    pub full_screen_output: bool,
 }

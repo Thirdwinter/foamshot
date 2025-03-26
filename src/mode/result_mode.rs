@@ -61,14 +61,14 @@ impl ResultMode {
         let (x, y, width, height) = match self.calculate_region(wl_ctx) {
             Some(region) => region,
             None => {
-                error!("无法确定截图区域：缺少必需的屏幕尺寸或区域坐标");
+                debug!("无法确定截图区域：缺少必需的屏幕尺寸或区域坐标");
                 return;
             }
         };
 
         if let Some(buffer) = freeze_frame.buffer.as_mut() {
             if let Err(e) = buffer.deactivate() {
-                error!("关闭 buffer 出错：{}", e);
+                debug!("关闭 buffer 出错：{}", e);
             }
         } else {
             error!("freeze_frame 中未找到 buffer");

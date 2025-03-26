@@ -39,6 +39,7 @@ pub fn run_main_loop() {
     }
 
     info!("into loop");
+    println!("{:?}", shot_foam.cli);
     loop {
         std::thread::sleep(std::time::Duration::from_millis(16));
         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
@@ -52,9 +53,19 @@ pub fn run_main_loop() {
                 // NOTE: see ./imp/impl_foam_shot.rs for details
             }
             Mode::Freeze(CopyHook::Ready) => {
-                shot_foam.freeze_mode.set_freeze(&mut shot_foam.wayland_ctx);
-
-                shot_foam.mode = Mode::PreSelect;
+                if shot_foam.cli.full_screen {
+                    println!("full screen");
+                    shot_foam.result_mode.full_screen = true;
+                    shot_foam.result_mode.to_png_2(
+                        &mut shot_foam.cli,
+                        &mut shot_foam.wayland_ctx,
+                        &mut shot_foam.freeze_mode,
+                    );
+                    shot_foam.mode = Mode::Exit;
+                } else {
+                    shot_foam.freeze_mode.set_freeze(&mut shot_foam.wayland_ctx);
+                    shot_foam.mode = Mode::PreSelect;
+                }
             }
             Mode::PreSelect => {
                 shot_foam.select_mode.on(&mut shot_foam.wayland_ctx);

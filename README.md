@@ -20,11 +20,14 @@ A lightweight screenshot utility based on the Wayland screen capture protocol (`
 ## Usage
 
 ```
-cli Options:
+Usage: foamshot [OPTIONS]
+
+Options:
       --show-cursor                show cursor when screen freeze, default to false
   -o, --output-path <OUTPUT_PATH>  output path, default to xdg user picture dir, supports format specifiers like %Y, %m, %d, %H, %M, %S
       --no-quickshot               disable quickshot, default to true
       --no-copy                    
+      --full-screen                
   -h, --help                       Print help
   -V, --version                    Print version
 ```

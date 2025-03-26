@@ -67,7 +67,7 @@ impl SelectMode {
         {
             Some((buffer, canvas)) => {
                 // self.buffer = Some(buffer);
-                canvas.fill(100);
+                canvas.fill(80);
                 self.buffer = Some(buffer);
 
                 self.buffer
