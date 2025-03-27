@@ -1,7 +1,7 @@
 use crate::wayland_ctx;
 
 pub mod freeze_mode;
-pub mod result_mode;
+// pub mod result_mode;
 pub mod select_mode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
