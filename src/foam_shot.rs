@@ -35,7 +35,8 @@ where
 }
 pub fn run_main_loop() {
     let connection = Connection::connect_to_env().expect("can't connect to wayland display");
-    let (globals, mut event_queue) = registry_queue_init::<FoamShot>(&connection).expect("failed to get globals");
+    let (globals, mut event_queue) =
+        registry_queue_init::<FoamShot>(&connection).expect("failed to get globals");
     let qh = event_queue.handle();
     let display = connection.display();
     let _registry = display.get_registry(&qh, ());
@@ -54,16 +55,22 @@ pub fn run_main_loop() {
     }
     shot_foam.wayland_ctx.request_screencopy();
 
-    while shot_foam.wayland_ctx.frames_ready != shot_foam.wayland_ctx.outputs.as_ref().unwrap().len() {
+    while shot_foam.wayland_ctx.frames_ready
+        != shot_foam.wayland_ctx.outputs.as_ref().unwrap().len()
+    {
         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
     }
 
     // NOTE: 创建layer && surface提交
     shot_foam.freeze_mode.before(&mut shot_foam.wayland_ctx);
+    shot_foam.select_mode.before(&mut shot_foam.wayland_ctx);
     // NOTE: 等待处理事件
     event_queue.blocking_dispatch(&mut shot_foam).unwrap();
     // NOTE: buffer attach to surface
     shot_foam.freeze_mode.set_freeze(&mut shot_foam.wayland_ctx);
+    shot_foam
+        .select_mode
+        .await_select(&mut shot_foam.wayland_ctx);
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(16));

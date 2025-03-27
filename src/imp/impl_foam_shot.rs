@@ -4,11 +4,17 @@ use log::*;
 use smithay_client_toolkit::delegate_shm;
 use smithay_client_toolkit::shm::ShmHandler;
 use wayland_client::globals::GlobalListContents;
-use wayland_client::protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface};
+use wayland_client::protocol::{
+    wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
+};
 use wayland_client::{Dispatch, Proxy};
-use wayland_protocols::wp::cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1};
+use wayland_protocols::wp::cursor_shape::v1::client::{
+    wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
+};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
-use wayland_protocols_wlr::screencopy::v1::client::{zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1};
+use wayland_protocols_wlr::screencopy::v1::client::{
+    zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
+};
 
 use crate::foam_shot::{FoamShot, hs_insert};
 use crate::mode::Mode;
@@ -23,7 +29,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
         qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
-            wl_registry::Event::Global { name, interface, version } => {
+            wl_registry::Event::Global {
+                name,
+                interface,
+                version,
+            } => {
                 trace!("Registry global: {} {} {}", name, interface, version);
 
                 // 使用更清晰的模式匹配结构
@@ -57,7 +67,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                         }
 
                         // Layer shell 绑定
-                        _ if interface_name == zwlr_layer_shell_v1::ZwlrLayerShellV1::interface().name => {
+                        _ if interface_name
+                            == zwlr_layer_shell_v1::ZwlrLayerShellV1::interface().name =>
+                        {
                             if app.wayland_ctx.layer_shell.is_none() {
                                 let layer_shell = proxy.bind(name, version, qh, ());
                                 app.wayland_ctx.layer_shell = Some((layer_shell, name));
@@ -65,7 +77,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                         }
 
                         // Screencopy manager 绑定
-                        _ if interface_name == zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1::interface().name => {
+                        _ if interface_name
+                            == zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1::interface()
+                                .name =>
+                        {
                             if app.wayland_ctx.screencopy_manager.is_none() {
                                 let manager = proxy.bind(name, version, qh, ());
                                 app.wayland_ctx.screencopy_manager = Some((manager, name));
@@ -73,10 +88,18 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                         }
 
                         // Cursor shape 相关绑定
-                        _ if interface_name == wp_cursor_shape_manager_v1::WpCursorShapeManagerV1::interface().name => {
+                        _ if interface_name
+                            == wp_cursor_shape_manager_v1::WpCursorShapeManagerV1::interface()
+                                .name =>
+                        {
                             if app.wayland_ctx.cursor_shape_manager.is_none() {
-                                let manager: wp_cursor_shape_manager_v1::WpCursorShapeManagerV1 = proxy.bind(name, version, qh, ());
-                                let pointer = app.wayland_ctx.pointer.as_ref().expect("Pointer not initialized");
+                                let manager: wp_cursor_shape_manager_v1::WpCursorShapeManagerV1 =
+                                    proxy.bind(name, version, qh, ());
+                                let pointer = app
+                                    .wayland_ctx
+                                    .pointer
+                                    .as_ref()
+                                    .expect("Pointer not initialized");
                                 let device = manager.get_pointer(pointer, qh, ());
                                 app.wayland_ctx.cursor_shape_manager = Some((manager, name));
                                 app.wayland_ctx.cursor_shape_device = Some(device);
@@ -97,7 +120,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             warn!("WlSeat was removed");
                             app.wayland_ctx.seat = None;
                         }
-                    } else if let Some((_, screencopymanager_name)) = &app.wayland_ctx.screencopy_manager {
+                    } else if let Some((_, screencopymanager_name)) =
+                        &app.wayland_ctx.screencopy_manager
+                    {
                         if name == *screencopymanager_name {
                             warn!("ZwlrScreencopyManagerV1 was removed");
                             app.wayland_ctx.screencopy_manager = None;
@@ -107,7 +132,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             warn!("ZwlrLayerShellV1 was removed");
                             app.wayland_ctx.layer_shell = None;
                         }
-                    } else if let Some((_, cursor_shape_manager_name)) = &app.wayland_ctx.cursor_shape_manager {
+                    } else if let Some((_, cursor_shape_manager_name)) =
+                        &app.wayland_ctx.cursor_shape_manager
+                    {
                         if name == *cursor_shape_manager_name {
                             warn!("WpCursorShapeManagerV1 was removed");
                             app.wayland_ctx.cursor_shape_manager = None;
@@ -293,7 +320,16 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                 };
                 // TODO: create surface
                 trace!("create surface");
-                hs_insert(&mut app.freeze_mode.surface, *data, compositor.create_surface(&qh, 1));
+                hs_insert(
+                    &mut app.freeze_mode.surface,
+                    *data,
+                    compositor.create_surface(&qh, 1),
+                );
+                hs_insert(
+                    &mut app.select_mode.surface,
+                    *data,
+                    compositor.create_surface(&qh, 1),
+                );
             }
             _ => {}
         };
@@ -348,11 +384,19 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
 
                 match &app.wayland_ctx.base_buffers {
                     Some(_) => {
-                        app.wayland_ctx.base_buffers.as_mut().unwrap().insert(*data, buffer);
+                        app.wayland_ctx
+                            .base_buffers
+                            .as_mut()
+                            .unwrap()
+                            .insert(*data, buffer);
                     }
                     None => {
                         app.wayland_ctx.base_buffers = Some(HashMap::new());
-                        app.wayland_ctx.base_buffers.as_mut().unwrap().insert(*data, buffer);
+                        app.wayland_ctx
+                            .base_buffers
+                            .as_mut()
+                            .unwrap()
+                            .insert(*data, buffer);
                     }
                 }
             }
@@ -387,7 +431,11 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for FoamShot {
         _qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
-            zwlr_layer_surface_v1::Event::Configure { serial, width: _, height: _ } => {
+            zwlr_layer_surface_v1::Event::Configure {
+                serial,
+                width: _,
+                height: _,
+            } => {
                 // acknowledge the Configure event
                 proxy.ack_configure(serial);
             }
