@@ -1,5 +1,6 @@
 mod config;
 mod foam_shot;
+mod helper;
 mod imp;
 mod mode;
 mod state;

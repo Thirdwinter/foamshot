@@ -1,19 +1,21 @@
 use std::collections::HashMap;
 
 use log::*;
-use smithay_client_toolkit::delegate_shm;
-use smithay_client_toolkit::shm::ShmHandler;
-use wayland_client::globals::GlobalListContents;
-use wayland_client::protocol::{
-    wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
+use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
+use wayland_client::{
+    Dispatch, Proxy,
+    globals::GlobalListContents,
+    protocol::{
+        wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
+    },
 };
-use wayland_client::{Dispatch, Proxy};
-use wayland_protocols::wp::cursor_shape::v1::client::{
-    wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
+use wayland_protocols::{
+    wp::cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1},
+    xdg::xdg_output::zv1::client::{zxdg_output_manager_v1, zxdg_output_v1},
 };
-use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
-use wayland_protocols_wlr::screencopy::v1::client::{
-    zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
+use wayland_protocols_wlr::{
+    layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
+    screencopy::v1::client::{zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1},
 };
 
 use crate::foam_shot::{FoamShot, hs_insert};
@@ -53,7 +55,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                                 let seat: wl_seat::WlSeat = proxy.bind(name, version, qh, ());
                                 let pointer = seat.get_pointer(qh, ());
                                 let keyboard = seat.get_keyboard(qh, ());
-                                app.wayland_ctx.pointer = Some(pointer);
+                                app.wayland_ctx.pointer_helper.pointer = Some(pointer);
                                 app.wayland_ctx.keyboard = Some(keyboard);
                                 app.wayland_ctx.seat = Some((seat, name));
                             }
@@ -92,17 +94,27 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             == wp_cursor_shape_manager_v1::WpCursorShapeManagerV1::interface()
                                 .name =>
                         {
-                            if app.wayland_ctx.cursor_shape_manager.is_none() {
+                            if app
+                                .wayland_ctx
+                                .pointer_helper
+                                .cursor_shape_manager
+                                .is_none()
+                            {
                                 let manager: wp_cursor_shape_manager_v1::WpCursorShapeManagerV1 =
                                     proxy.bind(name, version, qh, ());
-                                let pointer = app
-                                    .wayland_ctx
-                                    .pointer
-                                    .as_ref()
-                                    .expect("Pointer not initialized");
+                                let pointer = app.wayland_ctx.pointer_helper.get_pointer();
                                 let device = manager.get_pointer(pointer, qh, ());
-                                app.wayland_ctx.cursor_shape_manager = Some((manager, name));
-                                app.wayland_ctx.cursor_shape_device = Some(device);
+                                app.wayland_ctx.pointer_helper.cursor_shape_manager =
+                                    Some((manager, name));
+                                app.wayland_ctx.pointer_helper.cursor_shape_device = Some(device);
+                            }
+                        }
+                        _ if interface_name
+                            == zxdg_output_manager_v1::ZxdgOutputManagerV1::interface().name =>
+                        {
+                            if app.wayland_ctx.xdg_output_manager.is_none() {
+                                let manager = proxy.bind(name, version, qh, ());
+                                app.wayland_ctx.xdg_output_manager = Some((manager, name));
                             }
                         }
 
@@ -133,11 +145,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             app.wayland_ctx.layer_shell = None;
                         }
                     } else if let Some((_, cursor_shape_manager_name)) =
-                        &app.wayland_ctx.cursor_shape_manager
+                        &app.wayland_ctx.pointer_helper.cursor_shape_manager
                     {
                         if name == *cursor_shape_manager_name {
                             warn!("WpCursorShapeManagerV1 was removed");
-                            app.wayland_ctx.cursor_shape_manager = None;
+                            app.wayland_ctx.pointer_helper.cursor_shape_manager = None;
                         }
                     }
                 }
@@ -251,6 +263,20 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
+        match event {
+            wl_pointer::Event::Enter {
+                serial,
+                surface,
+                surface_x,
+                surface_y,
+            } => match app.wayland_ctx.pointer_helper.start_pos {
+                Some(_) => (),
+                None => {
+                    app.wayland_ctx.pointer_helper.start_pos = Some((surface_x, surface_y));
+                }
+            },
+            _ => (),
+        }
     }
 }
 // TODO:
@@ -272,7 +298,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         } = event
         {
             if let wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) = key_state {
-                println!("{}", key);
+                // debug!("{}", key);
                 if key == 1 {
                     std::process::exit(0);
                 }
@@ -314,8 +340,15 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                 debug!("Received wl_output::Event::Geometry for output {}", data);
                 // describes transformations that clients and compositors apply to buffer contents
 
+                let Some((xdg_output_manager, _)) = &app.wayland_ctx.xdg_output_manager else {
+                    error!("No ZxdgOutputManagerV1 loaded");
+                    return;
+                };
+                // create an xdg_output object for this wl_output
+                xdg_output_manager.get_xdg_output(proxy, &qh, *data as i64);
+
                 let Some((compositor, _)) = &app.wayland_ctx.compositor else {
-                    debug!("No Compositor");
+                    error!("No Compositor");
                     return;
                 };
                 // TODO: create surface
@@ -446,10 +479,53 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, i32> for FoamShot {
         }
     }
 }
+// NOTE: unused
+#[allow(unused_variables)]
+impl Dispatch<zxdg_output_manager_v1::ZxdgOutputManagerV1, ()> for FoamShot {
+    fn event(
+        app: &mut Self,
+        proxy: &zxdg_output_manager_v1::ZxdgOutputManagerV1,
+        event: <zxdg_output_manager_v1::ZxdgOutputManagerV1 as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
+        // todo!()
+    }
+}
+// TODO:
+impl Dispatch<zxdg_output_v1::ZxdgOutputV1, i64> for FoamShot {
+    fn event(
+        state: &mut Self,
+        proxy: &zxdg_output_v1::ZxdgOutputV1,
+        event: <zxdg_output_v1::ZxdgOutputV1 as Proxy>::Event,
+        data: &i64,
+        conn: &wayland_client::Connection,
+        qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+        match event {
+            zxdg_output_v1::Event::LogicalPosition { x, y } => {
+                info!("ZxdgOutputV1::Event::LogicalPosition: {}, {}", x, y);
+            }
+            zxdg_output_v1::Event::LogicalSize { width, height } => {
+                info!("ZxdgOutputV1::Event::LogicalSize: {}, {}", width, height);
+            }
+            zxdg_output_v1::Event::Description { description } => {
+                info!("ZxdgOutputV1::Event::Description: {}", description);
+            }
+            zxdg_output_v1::Event::Name { name } => {
+                info!("ZxdgOutputV1::Event::Name: {}", name);
+            }
+            _ => (),
+        }
+        // todo!()
+    }
+}
 
 impl ShmHandler for FoamShot {
     fn shm_state(&mut self) -> &mut smithay_client_toolkit::shm::Shm {
         self.wayland_ctx.shm.as_mut().unwrap()
     }
 }
+
 delegate_shm!(FoamShot);
