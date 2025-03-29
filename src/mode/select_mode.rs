@@ -168,10 +168,12 @@ impl SelectMode {
             buffer.attach_to(self.surface.as_ref().unwrap()).unwrap();
             self.buffer = Some(buffer);
             // 请求重绘
-            self.surface
-                .as_ref()
-                .unwrap()
-                .damage_buffer(0, 0, width, height);
+            self.surface.as_ref().unwrap().damage_buffer(
+                0,
+                0,
+                wl_ctx.width.unwrap(),
+                wl_ctx.height.unwrap(),
+            );
             self.surface.as_ref().unwrap().commit();
         }
     }
