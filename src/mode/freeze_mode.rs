@@ -80,7 +80,7 @@ impl FreezeMode {
     }
     pub fn set_freeze(&mut self, wl_ctx: &mut WaylandCtx) {
         // 提前解包必要的 Option 和引用，减少重复操作
-        let buffers = wl_ctx.base_buffers.as_mut().expect("Missing base buffers");
+        let buffers = wl_ctx.base_buffers.as_ref().expect("Missing base buffers");
         let Some(outputs) = wl_ctx.outputs.as_ref() else {
             error!("无可用 outputs");
             return;

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use log::*;
-use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
+use smithay_client_toolkit::{compositor, delegate_shm, shm::ShmHandler};
 use wayland_client::{
     Dispatch, Proxy,
     globals::GlobalListContents,
@@ -11,14 +11,17 @@ use wayland_client::{
 };
 use wayland_protocols::{
     wp::cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1},
-    xdg::xdg_output::zv1::client::{zxdg_output_manager_v1, zxdg_output_v1},
+    xdg::{
+        shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base},
+        xdg_output::zv1::client::{zxdg_output_manager_v1, zxdg_output_v1},
+    },
 };
 use wayland_protocols_wlr::{
     layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1},
     screencopy::v1::client::{zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1},
 };
 
-use crate::foam_shot::{FoamShot, hs_insert};
+use crate::foamshot::{FoamShot, hs_insert};
 use crate::mode::Mode;
 
 impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
@@ -109,12 +112,20 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                                 app.wayland_ctx.pointer_helper.cursor_shape_device = Some(device);
                             }
                         }
+                        // NOTE: xdg_output_manager 处理 多输出
                         _ if interface_name
                             == zxdg_output_manager_v1::ZxdgOutputManagerV1::interface().name =>
                         {
                             if app.wayland_ctx.xdg_output_manager.is_none() {
                                 let manager = proxy.bind(name, version, qh, ());
                                 app.wayland_ctx.xdg_output_manager = Some((manager, name));
+                            }
+                        }
+                        // xdgwmbase
+                        _ if interface_name == xdg_wm_base::XdgWmBase::interface().name => {
+                            if app.wayland_ctx.xdgwmbase.is_none() {
+                                let base = proxy.bind(name, version, qh, ());
+                                app.wayland_ctx.xdgwmbase = Some((base, name));
                             }
                         }
 
@@ -363,6 +374,12 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                     *data,
                     compositor.create_surface(&qh, 1),
                 );
+                app.editor_mode.surface = Some(compositor.create_surface(&qh, 1))
+                // hs_insert(
+                //     &mut app.editor_mode.surface,
+                //     *data,
+                //     compositor.create_surface(&qh, 1),
+                // );
             }
             _ => {}
         };
@@ -522,6 +539,44 @@ impl Dispatch<zxdg_output_v1::ZxdgOutputV1, i64> for FoamShot {
     }
 }
 
+#[allow(unused_variables)]
+impl Dispatch<xdg_wm_base::XdgWmBase, ()> for FoamShot {
+    fn event(
+        app: &mut Self,
+        proxy: &xdg_wm_base::XdgWmBase,
+        event: <xdg_wm_base::XdgWmBase as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
+        match event {
+            xdg_wm_base::Event::Ping { serial } => {
+                proxy.pong(serial);
+            }
+            _ => (),
+        }
+    }
+}
+
+impl Dispatch<xdg_surface::XdgSurface, ()> for FoamShot {
+    fn event(
+        app: &mut Self,
+        proxy: &xdg_surface::XdgSurface,
+        event: <xdg_surface::XdgSurface as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
+        match event {
+            xdg_surface::Event::Configure { serial } => {
+                proxy.ack_configure(serial);
+            }
+            _ => (),
+        }
+        // todo!()
+    }
+}
+
 impl ShmHandler for FoamShot {
     fn shm_state(&mut self) -> &mut smithay_client_toolkit::shm::Shm {
         self.wayland_ctx.shm.as_mut().unwrap()
@@ -529,3 +584,31 @@ impl ShmHandler for FoamShot {
 }
 
 delegate_shm!(FoamShot);
+
+impl Dispatch<xdg_toplevel::XdgToplevel, ()> for FoamShot {
+    fn event(
+        app: &mut Self,
+        proxy: &xdg_toplevel::XdgToplevel,
+        event: <xdg_toplevel::XdgToplevel as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
+        match event {
+            xdg_toplevel::Event::Close => std::process::exit(0),
+            xdg_toplevel::Event::WmCapabilities { capabilities } => {
+                info!("Capabilities: {:?}", capabilities);
+            }
+            xdg_toplevel::Event::Configure {
+                width,
+                height,
+                states,
+            } => {
+                // info!("Configure: {}, {}, states: {:?}", width, height, states);
+                // app.editor_mode.resize(&mut app.wayland_ctx, width, height);
+            }
+            _ => (),
+        }
+        // todo!()
+    }
+}

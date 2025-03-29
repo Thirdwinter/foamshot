@@ -12,7 +12,7 @@ use wayland_protocols_wlr::{
     // screencopy::v1::client::zwlr_screencopy_frame_v1,
 };
 
-use crate::{foam_shot::hs_insert, wayland_ctx::WaylandCtx};
+use crate::{foamshot::hs_insert, wayland_ctx::WaylandCtx};
 
 #[derive(Default)]
 pub struct SelectMode {

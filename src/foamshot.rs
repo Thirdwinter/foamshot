@@ -5,7 +5,7 @@ use log::*;
 use smithay_client_toolkit::shm::{Shm, slot::SlotPool};
 use wayland_client::{Connection, globals::registry_queue_init};
 
-use crate::mode::{Mode, freeze_mode, select_mode};
+use crate::mode::{Mode, editor_mode, freeze_mode, select_mode};
 use crate::{mode, wayland_ctx};
 
 pub struct FoamShot {
@@ -13,6 +13,7 @@ pub struct FoamShot {
 
     pub freeze_mode: freeze_mode::FreezeMode,
     pub select_mode: select_mode::SelectMode,
+    pub editor_mode: editor_mode::EditorMode,
     // pub result_mode: result_mode::ResultMode,
     pub mode: mode::Mode,
 }
@@ -64,13 +65,18 @@ pub fn run_main_loop() {
     // NOTE: 创建layer && surface提交
     shot_foam.freeze_mode.before(&mut shot_foam.wayland_ctx);
     shot_foam.select_mode.before(&mut shot_foam.wayland_ctx);
+    shot_foam.editor_mode.before(&mut shot_foam.wayland_ctx);
     // NOTE: 等待处理事件
     event_queue.blocking_dispatch(&mut shot_foam).unwrap();
     // NOTE: buffer attach to surface
     shot_foam.freeze_mode.set_freeze(&mut shot_foam.wayland_ctx);
+    // shot_foam
+    //     .select_mode
+    //     .await_select(&mut shot_foam.wayland_ctx);
+    shot_foam.editor_mode.on(&mut shot_foam.wayland_ctx);
     shot_foam
-        .select_mode
-        .await_select(&mut shot_foam.wayland_ctx);
+        .freeze_mode
+        .unset_freeze(&mut shot_foam.wayland_ctx);
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(16));
@@ -89,6 +95,7 @@ impl FoamShot {
             wayland_ctx: wayland_ctx::WaylandCtx::new(shm, pool, qh),
             freeze_mode: mode::freeze_mode::FreezeMode::new(),
             select_mode: mode::select_mode::SelectMode::default(),
+            editor_mode: mode::editor_mode::EditorMode::default(),
             // result_mode: mode::result_mode::ResultMode::new(cli.quickshot),
             // cli,
             mode: mode::Mode::default(),

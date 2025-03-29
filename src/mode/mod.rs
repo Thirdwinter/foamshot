@@ -1,5 +1,6 @@
 use crate::wayland_ctx;
 
+pub mod editor_mode;
 pub mod freeze_mode;
 // pub mod result_mode;
 pub mod select_mode;

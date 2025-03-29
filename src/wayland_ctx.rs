@@ -11,14 +11,14 @@ use wayland_client::{
 };
 use wayland_protocols::{
     wp::cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1},
-    xdg::xdg_output::zv1::client::zxdg_output_manager_v1,
+    xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
 };
 use wayland_protocols_wlr::{
     layer_shell::v1::client::zwlr_layer_shell_v1,
     screencopy::v1::client::{zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1},
 };
 
-use crate::{foam_shot::FoamShot, helper::pointer_helper::PointerHelper};
+use crate::{foamshot::FoamShot, helper::pointer_helper::PointerHelper};
 
 #[derive(Default)]
 pub struct WaylandCtx {
@@ -33,6 +33,7 @@ pub struct WaylandCtx {
     pub screencopy_manager: Option<(zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, u32)>,
     pub layer_shell: Option<(zwlr_layer_shell_v1::ZwlrLayerShellV1, u32)>,
     pub xdg_output_manager: Option<(zxdg_output_manager_v1::ZxdgOutputManagerV1, u32)>,
+    pub xdgwmbase: Option<(xdg_wm_base::XdgWmBase, u32)>,
 
     /// 每个输出设备一个
     pub outputs: Option<Vec<wl_output::WlOutput>>,
