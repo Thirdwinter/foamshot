@@ -5,35 +5,16 @@ use log::*;
 use smithay_client_toolkit::shm::{Shm, slot::SlotPool};
 use wayland_client::{Connection, globals::registry_queue_init};
 
-use crate::mode::{Mode, editor_mode, freeze_mode, select_mode};
+use crate::mode::{Mode, freeze_mode};
 use crate::{mode, wayland_ctx};
 
 pub struct FoamShot {
     pub wayland_ctx: wayland_ctx::WaylandCtx,
 
     pub freeze_mode: freeze_mode::FreezeMode,
-    pub select_mode: select_mode::SelectMode,
-    pub editor_mode: editor_mode::EditorMode,
-    // pub result_mode: result_mode::ResultMode,
     pub mode: mode::Mode,
 }
 
-pub fn hs_insert<T, V>(state_hm: &mut Option<HashMap<T, V>>, key: T, value: V)
-where
-    T: Eq + Hash,
-    V: Clone,
-{
-    match state_hm {
-        Some(hm) => {
-            hm.insert(key, value.clone());
-        }
-        None => {
-            let mut new_hm = HashMap::new();
-            new_hm.insert(key, value.clone());
-            *state_hm = Some(new_hm);
-        }
-    }
-}
 pub fn run_main_loop() {
     let connection = Connection::connect_to_env().expect("can't connect to wayland display");
     let (globals, mut event_queue) =
@@ -62,21 +43,55 @@ pub fn run_main_loop() {
         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
     }
 
+    let Some(outputs) = &shot_foam.wayland_ctx.outputs.as_ref() else {
+        error!("无可用 outputs");
+        return;
+    };
+
+    for (i, _) in outputs.iter().enumerate() {
+        log::debug!("output {}", i);
+        let buffer = shot_foam
+            .wayland_ctx
+            .base_buffers
+            .as_ref()
+            .unwrap()
+            .get(&i)
+            .unwrap();
+        let canvas = buffer
+            .canvas(shot_foam.wayland_ctx.pool.as_mut().unwrap())
+            .unwrap();
+
+        match &shot_foam.wayland_ctx.base_canvas {
+            Some(_) => {
+                shot_foam
+                    .wayland_ctx
+                    .base_canvas
+                    .as_mut()
+                    .unwrap()
+                    .insert(i as usize, canvas.to_vec());
+            }
+            None => {
+                shot_foam.wayland_ctx.base_canvas = Some(HashMap::new());
+                shot_foam
+                    .wayland_ctx
+                    .base_canvas
+                    .as_mut()
+                    .unwrap()
+                    .insert(i as usize, canvas.to_vec());
+            }
+        }
+    }
+
     // NOTE: 创建layer && surface提交
     shot_foam.freeze_mode.before(&mut shot_foam.wayland_ctx);
-    shot_foam.select_mode.before(&mut shot_foam.wayland_ctx);
-    shot_foam.editor_mode.before(&mut shot_foam.wayland_ctx);
+
     // NOTE: 等待处理事件
     event_queue.blocking_dispatch(&mut shot_foam).unwrap();
+
     // NOTE: buffer attach to surface
-    shot_foam.freeze_mode.set_freeze(&mut shot_foam.wayland_ctx);
-    // shot_foam
-    //     .select_mode
-    //     .await_select(&mut shot_foam.wayland_ctx);
-    shot_foam.editor_mode.on(&mut shot_foam.wayland_ctx);
-    shot_foam
-        .freeze_mode
-        .unset_freeze(&mut shot_foam.wayland_ctx);
+    // shot_foam.freeze_mode.set_freeze(&mut shot_foam.wayland_ctx);
+
+    println!("{:?}", shot_foam.wayland_ctx.monitors.as_ref().unwrap());
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(16));
@@ -94,11 +109,26 @@ impl FoamShot {
         Self {
             wayland_ctx: wayland_ctx::WaylandCtx::new(shm, pool, qh),
             freeze_mode: mode::freeze_mode::FreezeMode::new(),
-            select_mode: mode::select_mode::SelectMode::default(),
-            editor_mode: mode::editor_mode::EditorMode::default(),
             // result_mode: mode::result_mode::ResultMode::new(cli.quickshot),
             // cli,
             mode: mode::Mode::default(),
+        }
+    }
+}
+
+pub fn hs_insert<T, V>(state_hm: &mut Option<HashMap<T, V>>, key: T, value: V)
+where
+    T: Eq + Hash,
+    V: Clone,
+{
+    match state_hm {
+        Some(hm) => {
+            hm.insert(key, value.clone());
+        }
+        None => {
+            let mut new_hm = HashMap::new();
+            new_hm.insert(key, value.clone());
+            *state_hm = Some(new_hm);
         }
     }
 }

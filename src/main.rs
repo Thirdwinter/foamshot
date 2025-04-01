@@ -1,8 +1,8 @@
 mod config;
 mod foamshot;
 mod helper;
-mod imp;
 mod mode;
+mod protocols;
 mod wayland_ctx;
 fn main() {
     env_logger::init();

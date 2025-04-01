@@ -1,16 +1,19 @@
 use std::collections::HashMap;
 
-use log::{debug, error, warn};
+use log::{debug, error};
 use smithay_client_toolkit::shm::{
     self,
     slot::{self, Buffer},
 };
 use wayland_client::{
     QueueHandle,
-    protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_seat},
+    protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm},
 };
 use wayland_protocols::{
-    wp::cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1},
+    wp::{
+        cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1},
+        viewporter::client::wp_viewporter,
+    },
     xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
 };
 use wayland_protocols_wlr::{
@@ -18,7 +21,10 @@ use wayland_protocols_wlr::{
     screencopy::v1::client::{zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1},
 };
 
-use crate::{foamshot::FoamShot, helper::pointer_helper::PointerHelper};
+use crate::{
+    foamshot::FoamShot,
+    helper::{monitor_helper::Monitor, pointer_helper::PointerHelper},
+};
 
 #[derive(Default)]
 pub struct WaylandCtx {
@@ -34,6 +40,9 @@ pub struct WaylandCtx {
     pub layer_shell: Option<(zwlr_layer_shell_v1::ZwlrLayerShellV1, u32)>,
     pub xdg_output_manager: Option<(zxdg_output_manager_v1::ZxdgOutputManagerV1, u32)>,
     pub xdgwmbase: Option<(xdg_wm_base::XdgWmBase, u32)>,
+    pub viewporter: Option<(wp_viewporter::WpViewporter, u32)>,
+
+    pub current_index: Option<usize>,
 
     /// 每个输出设备一个
     pub outputs: Option<Vec<wl_output::WlOutput>>,
@@ -42,16 +51,20 @@ pub struct WaylandCtx {
     pub scales: Option<HashMap<usize, i32>>,
     /// 初始copy的屏幕
     pub base_buffers: Option<HashMap<usize, Buffer>>,
+    pub base_canvas: Option<HashMap<usize, Vec<u8>>>,
     pub screencopy_frame: Option<HashMap<usize, zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>>,
     pub frames_ready: usize,
 
     /// 光标管理器
     pub pointer_helper: PointerHelper,
+    // pub pointer: Option<wl_pointer::WlPointer>,
+    //
     // pub cursor_shape_manager: Option<(wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, u32)>,
     // pub cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
     // pub current_pos: Option<(f64, f64)>,
     // pub start_pos: Option<(f64, f64)>,
     // pub end_pos: Option<(f64, f64)>,
+    pub monitors: Option<HashMap<usize, Monitor>>,
 }
 
 impl WaylandCtx {
