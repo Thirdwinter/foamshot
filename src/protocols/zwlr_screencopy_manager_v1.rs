@@ -9,20 +9,6 @@ use wayland_protocols_wlr::screencopy::v1::client::{
 use crate::foamshot::FoamShot;
 use crate::mode::Mode;
 
-// NOTE: unused
-#[allow(unused_variables)]
-impl Dispatch<zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, ()> for FoamShot {
-    fn event(
-        app: &mut Self,
-        proxy: &zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
-        event: <zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1 as Proxy>::Event,
-        data: &(),
-        conn: &wayland_client::Connection,
-        qh: &wayland_client::QueueHandle<Self>,
-    ) {
-    }
-}
-
 impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamShot {
     fn event(
         app: &mut Self,
@@ -86,49 +72,25 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
                 trace!("data:{}, frame ready", data);
                 app.wayland_ctx.frames_ready += 1;
-                // let Some(outputs) = &app.wayland_ctx.outputs.as_ref() else {
-                //     error!("无可用 outputs");
-                //     return;
-                // };
-                //
-                // // if let Some(outputs) = app.wayland_ctx.outputs.as_ref().clone() {
-                // for (i, _) in outputs.iter().enumerate() {
-                //     log::debug!("output {}", i);
-                //     let buffer = app
-                //         .wayland_ctx
-                //         .base_buffers
-                //         .as_ref()
-                //         .unwrap()
-                //         .get(&i)
-                //         .unwrap();
-                //     let canvas = buffer
-                //         .canvas(app.wayland_ctx.pool.as_mut().unwrap())
-                //         .unwrap();
-                //
-                //     match &app.wayland_ctx.base_canvas {
-                //         Some(_) => {
-                //             app.wayland_ctx
-                //                 .base_canvas
-                //                 .as_mut()
-                //                 .unwrap()
-                //                 .insert(*data, canvas.to_vec());
-                //         }
-                //         None => {
-                //             app.wayland_ctx.base_canvas = Some(HashMap::new());
-                //             app.wayland_ctx
-                //                 .base_canvas
-                //                 .as_mut()
-                //                 .unwrap()
-                //                 .insert(*data, canvas.to_vec());
-                //         }
-                //     }
-                // }
-                // }
             }
             zwlr_screencopy_frame_v1::Event::Failed => {
                 app.mode = Mode::Exit;
             }
             _ => (),
         }
+    }
+}
+
+// NOTE: unused
+#[allow(unused_variables)]
+impl Dispatch<zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, ()> for FoamShot {
+    fn event(
+        app: &mut Self,
+        proxy: &zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
+        event: <zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1 as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
     }
 }

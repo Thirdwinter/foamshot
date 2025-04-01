@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    cmp::{max, min},
+    collections::HashMap,
+};
 
 use log::{debug, error};
 use smithay_client_toolkit::shm::{
@@ -7,13 +10,10 @@ use smithay_client_toolkit::shm::{
 };
 use wayland_client::{
     QueueHandle,
-    protocol::{wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_shm},
+    protocol::{wl_compositor, wl_keyboard, wl_output, wl_seat},
 };
 use wayland_protocols::{
-    wp::{
-        cursor_shape::v1::client::{wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1},
-        viewporter::client::wp_viewporter,
-    },
+    wp::viewporter::client::wp_viewporter,
     xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
 };
 use wayland_protocols_wlr::{
@@ -23,7 +23,10 @@ use wayland_protocols_wlr::{
 
 use crate::{
     foamshot::FoamShot,
-    helper::{monitor_helper::Monitor, pointer_helper::PointerHelper},
+    helper::{
+        monitor_helper::{Monitor, SubRect},
+        pointer_helper::PointerHelper,
+    },
 };
 
 #[derive(Default)]
@@ -65,6 +68,8 @@ pub struct WaylandCtx {
     // pub start_pos: Option<(f64, f64)>,
     // pub end_pos: Option<(f64, f64)>,
     pub monitors: Option<HashMap<usize, Monitor>>,
+
+    pub subrects: Option<Vec<SubRect>>,
 }
 
 impl WaylandCtx {
@@ -75,6 +80,32 @@ impl WaylandCtx {
             pool: Some(pool),
             ..Default::default()
         }
+    }
+    pub fn request_screencopy_region(&mut self) {
+        debug!("发起屏幕copy请求");
+        let screencopy_manager = if let Some((ref manager, _)) = self.screencopy_manager {
+            manager
+        } else {
+            error!("screencopy_manager 未初始化");
+            return;
+        };
+
+        let qh = if let Some(ref qh) = self.qh {
+            qh
+        } else {
+            error!("QueueHandle 未初始化");
+            return;
+        };
+        let farme = screencopy_manager.capture_output_region(
+            false as i32,
+            self.outputs.as_ref().unwrap().get(0).unwrap(),
+            0,
+            0,
+            1800,
+            600,
+            qh,
+            20,
+        );
     }
 
     pub fn request_screencopy(&mut self) {
@@ -106,66 +137,57 @@ impl WaylandCtx {
         }
     }
 
-    pub fn test(&mut self) {
-        if self.base_buffers.is_none() {
-            println!("error to copy")
-        } else {
-            println!("ok")
+    pub fn generate_sub_rects(&mut self) {
+        if let Some(monitors) = &self.monitors {
+            if let Some(start_index) = self.pointer_helper.start_index {
+                if let Some((start_x, start_y)) = self.pointer_helper.start_pos {
+                    if let Some((end_x, end_y)) = self.pointer_helper.end_pos {
+                        if let Some(monitor) = monitors.get(&start_index) {
+                            // 将相对坐标转换为全局坐标
+                            let start_global_x = monitor.x + start_x as i32;
+                            let start_global_y = monitor.y + start_y as i32;
+                            let end_global_x = monitor.x + end_x as i32;
+                            let end_global_y = monitor.y + end_y as i32;
+
+                            // 计算矩形的全局边界
+                            let rect_min_x = min(start_global_x, end_global_x);
+                            let rect_min_y = min(start_global_y, end_global_y);
+                            let rect_max_x = max(start_global_x, end_global_x);
+                            let rect_max_y = max(start_global_y, end_global_y);
+
+                            let mut sub_rects = Vec::new();
+
+                            for (id, m) in monitors {
+                                let intersection_min_x = max(m.x, rect_min_x);
+                                let intersection_min_y = max(m.y, rect_min_y);
+                                let intersection_max_x = min(m.x + m.width, rect_max_x);
+                                let intersection_max_y = min(m.y + m.height, rect_max_y);
+
+                                if intersection_min_x >= intersection_max_x
+                                    || intersection_min_y >= intersection_max_y
+                                {
+                                    continue;
+                                }
+
+                                let relative_min_x = intersection_min_x - m.x;
+                                let relative_min_y = intersection_min_y - m.y;
+                                let width = intersection_max_x - intersection_min_x;
+                                let height = intersection_max_y - intersection_min_y;
+
+                                sub_rects.push(SubRect {
+                                    monitor_id: *id as i32,
+                                    relative_min_x,
+                                    relative_min_y,
+                                    width,
+                                    height,
+                                });
+                            }
+
+                            self.subrects = Some(sub_rects);
+                        }
+                    }
+                }
+            }
         }
     }
 }
-
-// impl WaylandCtx {
-//     pub fn new(shm: shm::Shm, pool: slot::SlotPool, qh: QueueHandle<FoamShot>) -> Self {
-//         Self {
-//             qh: Some(qh),
-//             shm: Some(shm),
-//             pool: Some(pool),
-//             ..Default::default()
-//         }
-//     }
-//
-//     /// Create a buffer
-//     pub fn create_buffer(
-//         &mut self,
-//         width: i32,
-//         height: i32,
-//         stride: i32,
-//         format: Format,
-//     ) -> Result<(Buffer, &mut [u8]), String> {
-//         let pool = self.pool.as_mut().ok_or("Wayland pool not initialized")?;
-//
-//         let (buffer, canvas) = pool
-//             .create_buffer(width, height, stride, format)
-//             .map_err(|e| format!("Wayland buffer creation failed: {}", e))?;
-//
-//         Ok((buffer, canvas))
-//     }
-//
-//     /// Set the cursor shape
-//     pub fn set_cursor_shape(&mut self, shape: wp_cursor_shape_device_v1::Shape) {
-//         if let Some(device) = &self.cursor_shape_device {
-//             device.set_shape(1, shape);
-//             return;
-//         }
-//
-//         let manager = match self.cursor_shape_manager.as_ref() {
-//             Some(manager) => manager,
-//             None => return,
-//         };
-//
-//         let pointer = match self.pointer.as_ref() {
-//             Some(pointer) => pointer,
-//             None => return,
-//         };
-//
-//         let qh = match self.qh.as_ref() {
-//             Some(qh) => qh,
-//             None => return,
-//         };
-//
-//         let device = manager.get_pointer(pointer, qh, ());
-//         device.set_shape(1, shape);
-//         self.cursor_shape_device = Some(device);
-//     }
-// }

@@ -21,11 +21,11 @@ pub struct EditorMode {
 
 impl EditorMode {
     pub fn before(&mut self, wl_ctx: &wayland_ctx::WaylandCtx) {
-        self.viewport = Some(wl_ctx.viewporter.as_ref().unwrap().0.get_viewport(
-            self.surface.as_ref().unwrap(),
-            wl_ctx.qh.as_ref().unwrap(),
-            (),
-        ));
+        // self.viewport = Some(wl_ctx.viewporter.as_ref().unwrap().0.get_viewport(
+        //     self.surface.as_ref().unwrap(),
+        //     wl_ctx.qh.as_ref().unwrap(),
+        //     (),
+        // ));
         let xdg_surface = wl_ctx.xdgwmbase.as_ref().unwrap().0.get_xdg_surface(
             self.surface.as_ref().unwrap(),
             wl_ctx.qh.as_ref().unwrap(),
@@ -38,23 +38,36 @@ impl EditorMode {
         toplevel.set_max_size(500, 281);
         toplevel.set_min_size(500, 281);
         self.toplevel = Some(toplevel);
-        self.viewport
-            .as_ref()
-            .unwrap()
-            .set_source(0.0, 0.0, 1366.0, 768.0);
-        self.viewport.as_ref().unwrap().set_destination(500, 281);
+        // self.viewport
+        //     .as_ref()
+        //     .unwrap()
+        //     .set_source(0.0, 0.0, 1366.0, 768.0);
+        // self.viewport.as_ref().unwrap().set_destination(500, 281);
         self.surface.as_ref().unwrap().damage(0, 0, 1366, 768);
 
         self.surface.as_ref().unwrap().commit();
     }
 
     pub fn on(&mut self, wl_ctx: &mut wayland_ctx::WaylandCtx) {
-        let canvas1 = wl_ctx.base_canvas.as_ref().unwrap().get(&1).unwrap();
+        wl_ctx.base_canvas.as_mut().unwrap().insert(
+            20,
+            wl_ctx
+                .base_buffers
+                .as_ref()
+                .unwrap()
+                .get(&20)
+                .unwrap()
+                .canvas(wl_ctx.pool.as_mut().unwrap())
+                .unwrap()
+                .to_vec(),
+        );
+
+        let canvas1 = wl_ctx.base_canvas.as_ref().unwrap().get(&20).unwrap();
         let (buf, current_canvas) = wl_ctx
             .pool
             .as_mut()
             .unwrap()
-            .create_buffer(1366, 768, 1366 * 4, Format::Argb8888)
+            .create_buffer(1800, 600, 1800 * 4, Format::Argb8888)
             .unwrap();
         if current_canvas.len() == canvas1.len() {
             debug!(
@@ -68,9 +81,9 @@ impl EditorMode {
             ImageSurface::create_for_data(
                 std::slice::from_raw_parts_mut(current_canvas.as_mut_ptr(), current_canvas.len()),
                 cairo::Format::ARgb32,
-                1366,
-                768,
-                1366 * 4,
+                1800,
+                600,
+                1800 * 4,
             )
             .map_err(|e| format!("Failed to create Cairo surface: {}", e))
             .unwrap()
@@ -86,7 +99,7 @@ impl EditorMode {
         ctx.paint().unwrap();
 
         buf.attach_to(self.surface.as_ref().unwrap()).unwrap();
-        self.surface.as_ref().unwrap().damage(0, 0, 1366, 768);
+        self.surface.as_ref().unwrap().damage(0, 0, 1800, 600);
         self.surface.as_ref().unwrap().commit();
     }
 }

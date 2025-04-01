@@ -12,6 +12,7 @@ pub struct FoamShot {
     pub wayland_ctx: wayland_ctx::WaylandCtx,
 
     pub freeze_mode: freeze_mode::FreezeMode,
+    pub editor_mode: mode::editor_mode::EditorMode,
     pub mode: mode::Mode,
 }
 
@@ -97,7 +98,56 @@ pub fn run_main_loop() {
         std::thread::sleep(std::time::Duration::from_millis(16));
         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
         match &shot_foam.mode {
-            Mode::Exit => std::process::exit(0),
+            Mode::Exit => {
+                shot_foam.wayland_ctx.generate_sub_rects();
+                println!("{:?}", shot_foam.wayland_ctx.subrects.as_ref().unwrap());
+                // let m = shot_foam
+                //     .wayland_ctx
+                //     .monitors
+                //     .as_ref()
+                //     .unwrap()
+                //     .get(
+                //         shot_foam
+                //             .wayland_ctx
+                //             .pointer_helper
+                //             .start_index
+                //             .as_ref()
+                //             .unwrap(),
+                //     )
+                //     .unwrap();
+                // let (sx, sy) = shot_foam
+                //     .wayland_ctx
+                //     .pointer_helper
+                //     .start_pos
+                //     .clone()
+                //     .unwrap();
+                // let (ex, ey) = shot_foam
+                //     .wayland_ctx
+                //     .pointer_helper
+                //     .end_pos
+                //     .clone()
+                //     .unwrap();
+                //
+                // // 将相对坐标转换为全局坐标
+                // let start_global_x = m.x + sx as i32;
+                // let start_global_y = m.y + sy as i32;
+                // let end_global_x = m.x + ex as i32;
+                // let end_global_y = m.y + ey as i32;
+                //
+                // // // 确定左上角坐标
+                // let x0 = start_global_x.min(end_global_x);
+                // let y0 = start_global_y.min(end_global_y);
+                // //
+                // // // 计算宽高（绝对值保证结果为正数）
+                // let width = (ex - sx).abs();
+                // let height = (ey - sy).abs();
+                // println!(
+                //     "({},{}) ({},{})",
+                //     x0 as i32, y0 as i32, width as i32, height as i32
+                // );
+
+                std::process::exit(0)
+            }
             _ => (),
         }
     }
@@ -109,6 +159,7 @@ impl FoamShot {
         Self {
             wayland_ctx: wayland_ctx::WaylandCtx::new(shm, pool, qh),
             freeze_mode: mode::freeze_mode::FreezeMode::new(),
+            editor_mode: mode::editor_mode::EditorMode::default(),
             // result_mode: mode::result_mode::ResultMode::new(cli.quickshot),
             // cli,
             mode: mode::Mode::default(),

@@ -1,23 +1,9 @@
-use log::{debug, error};
+use log::debug;
 use wayland_client::protocol::wl_shm::Format;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 
 use crate::foamshot::FoamShot;
-
-// NOTE: unused
-#[allow(unused_variables)]
-impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for FoamShot {
-    fn event(
-        app: &mut Self,
-        proxy: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
-        event: <zwlr_layer_shell_v1::ZwlrLayerShellV1 as Proxy>::Event,
-        data: &(),
-        conn: &wayland_client::Connection,
-        qh: &wayland_client::QueueHandle<Self>,
-    ) {
-    }
-}
 
 impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
     fn event(
@@ -67,5 +53,19 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
             }
             _ => (),
         }
+    }
+}
+
+// NOTE: unused
+#[allow(unused_variables)]
+impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for FoamShot {
+    fn event(
+        app: &mut Self,
+        proxy: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
+        event: <zwlr_layer_shell_v1::ZwlrLayerShellV1 as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
     }
 }
