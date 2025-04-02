@@ -56,19 +56,13 @@ pub struct WaylandCtx {
     pub base_buffers: Option<HashMap<usize, Buffer>>,
     pub base_canvas: Option<HashMap<usize, Vec<u8>>>,
     pub screencopy_frame: Option<HashMap<usize, zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>>,
+
     pub frames_ready: usize,
+    pub freeze_ready: usize,
 
     /// 光标管理器
     pub pointer_helper: PointerHelper,
-    // pub pointer: Option<wl_pointer::WlPointer>,
-    //
-    // pub cursor_shape_manager: Option<(wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, u32)>,
-    // pub cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
-    // pub current_pos: Option<(f64, f64)>,
-    // pub start_pos: Option<(f64, f64)>,
-    // pub end_pos: Option<(f64, f64)>,
     pub monitors: Option<HashMap<usize, Monitor>>,
-
     pub subrects: Option<Vec<SubRect>>,
 }
 
@@ -141,7 +135,7 @@ impl WaylandCtx {
         if let Some(monitors) = &self.monitors {
             if let Some(start_index) = self.pointer_helper.start_index {
                 if let Some((start_x, start_y)) = self.pointer_helper.start_pos {
-                    if let Some((end_x, end_y)) = self.pointer_helper.end_pos {
+                    if let Some((end_x, end_y)) = self.pointer_helper.current_pos {
                         if let Some(monitor) = monitors.get(&start_index) {
                             // 将相对坐标转换为全局坐标
                             let start_global_x = monitor.x + start_x as i32;
@@ -175,7 +169,7 @@ impl WaylandCtx {
                                 let height = intersection_max_y - intersection_min_y;
 
                                 sub_rects.push(SubRect {
-                                    monitor_id: *id as i32,
+                                    monitor_id: *id,
                                     relative_min_x,
                                     relative_min_y,
                                     width,
@@ -186,6 +180,35 @@ impl WaylandCtx {
                             self.subrects = Some(sub_rects);
                         }
                     }
+                }
+            }
+        }
+    }
+
+    /// 将屏幕截图数据保存到 base_canvas
+    pub fn store_copy_canvas(&mut self) {
+        let Some(outputs) = self.outputs.as_ref() else {
+            error!("无可用 outputs");
+            return;
+        };
+
+        for (i, _) in outputs.iter().enumerate() {
+            let buffer = self.base_buffers.as_ref().unwrap().get(&i).unwrap();
+            let canvas = buffer.canvas(self.pool.as_mut().unwrap()).unwrap();
+
+            match &self.base_canvas {
+                Some(_) => {
+                    self.base_canvas
+                        .as_mut()
+                        .unwrap()
+                        .insert(i as usize, canvas.to_vec());
+                }
+                None => {
+                    self.base_canvas = Some(HashMap::new());
+                    self.base_canvas
+                        .as_mut()
+                        .unwrap()
+                        .insert(i as usize, canvas.to_vec());
                 }
             }
         }

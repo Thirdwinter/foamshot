@@ -4,6 +4,7 @@ use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 
 use crate::foamshot::FoamShot;
+use crate::mode::Mode;
 
 impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
     fn event(
@@ -23,30 +24,19 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                 debug!("Configure {}: {}x{}", data, width, height);
                 proxy.ack_configure(serial);
                 proxy.set_size(width, height);
-                let (buffer, canvas) = app
-                    .wayland_ctx
-                    .pool
-                    .as_mut()
-                    .unwrap()
-                    .create_buffer(
-                        width as i32,
-                        height as i32,
-                        width as i32 * 4,
-                        Format::Argb8888,
-                    )
-                    .unwrap();
-                canvas.fill(100);
-                // let buffers = app
-                //     .wayland_ctx
-                //     .base_buffers
-                //     .as_mut()
-                //     .expect("Missing base buffers");
-                let surfaces = app.freeze_mode.surface.as_mut().expect("Missing surfaces");
-                // let buffer = buffers.get(data).expect("Missing buffer");
-                let surface = surfaces.get_mut(data).expect("Missing surface");
-                buffer.attach_to(surface).unwrap();
-                surface.damage(0, 0, width as i32, height as i32);
-                surface.commit();
+                match app.mode {
+                    Mode::Init => {
+                        app.freeze_mode
+                            .set_freeze_with_udata(&mut app.wayland_ctx, data.clone());
+                        app.wayland_ctx.freeze_ready += 1;
+                        if app.wayland_ctx.freeze_ready
+                            == app.wayland_ctx.outputs.as_ref().unwrap().len()
+                        {
+                            app.mode = Mode::OnFreeze;
+                        }
+                    }
+                    _ => {}
+                }
             }
             zwlr_layer_surface_v1::Event::Closed => {
                 proxy.destroy();

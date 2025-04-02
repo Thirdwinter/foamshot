@@ -56,7 +56,7 @@ impl Monitor {
 
 #[derive(Debug, Clone)]
 pub struct SubRect {
-    pub monitor_id: i32,
+    pub monitor_id: usize,
     pub relative_min_x: i32,
     pub relative_min_y: i32,
     pub width: i32,

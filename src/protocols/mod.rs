@@ -241,6 +241,8 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
 
                             app.wayland_ctx.pointer_helper.start_pos =
                                 app.wayland_ctx.pointer_helper.current_pos.clone();
+
+                            app.mode = Mode::OnDraw;
                         }
                         wl_pointer::ButtonState::Released => {
                             app.wayland_ctx.pointer_helper.is_pressing = false;
@@ -249,16 +251,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
 
                             app.wayland_ctx.pointer_helper.end_pos =
                                 app.wayland_ctx.pointer_helper.current_pos.clone();
-                            debug!(
-                                "start: {}, end: {}",
-                                app.wayland_ctx.pointer_helper.start_index.unwrap(),
-                                app.wayland_ctx.pointer_helper.end_index.unwrap()
-                            );
-                            debug!(
-                                "start: {:?}, end: {:?}",
-                                app.wayland_ctx.pointer_helper.start_pos,
-                                app.wayland_ctx.pointer_helper.end_pos
-                            );
+
                             app.mode = Mode::Exit;
                         }
                         _ => (),
@@ -272,6 +265,12 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
             } => {
                 // debug!("Pointer::Motion => x: {}, y: {}", surface_x, surface_y);
                 app.wayland_ctx.pointer_helper.current_pos = Some((surface_x, surface_y));
+                match app.mode {
+                    Mode::OnDraw => {
+                        app.wayland_ctx.generate_sub_rects();
+                    }
+                    _ => (),
+                }
             }
             _ => (),
         }
