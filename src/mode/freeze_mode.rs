@@ -162,8 +162,17 @@ impl FreezeMode {
             // NOTE: why is would this be None?
             // Should this be None?
             // Is it okay to be None?
-            let canvas = buffer.canvas(pool).unwrap();
+
+            let (buffer, canvas) = pool
+                .create_buffer(
+                    *widths.get(&index).unwrap_or(&0),
+                    *heights.get(&index).unwrap_or(&0),
+                    widths.get(&index).unwrap_or(&0) * 4,
+                    Format::Argb8888,
+                )
+                .unwrap();
             canvas.copy_from_slice(wl_ctx.base_canvas.as_ref().unwrap().get(&index).unwrap());
+            // let canvas = buffer.canvas(pool).unwrap();
 
             // 创建 Cairo Surface
             let cairo_surface = unsafe {
