@@ -158,6 +158,10 @@ impl FreezeMode {
 
             // 获取 canvas，如果 pool 为 None 则返回
             let pool = wl_ctx.pool.as_mut().unwrap();
+
+            // NOTE: why is would this be None?
+            // Should this be None?
+            // Is it okay to be None?
             let canvas = buffer.canvas(pool).unwrap();
             canvas.copy_from_slice(wl_ctx.base_canvas.as_ref().unwrap().get(&index).unwrap());
 
@@ -211,6 +215,10 @@ impl FreezeMode {
 
             // 获取 canvas，如果 pool 为 None 则返回
             let pool = wl_ctx.pool.as_mut().unwrap();
+
+            // NOTE: why is would this be None?
+            // Should this be None?
+            // Is it okay to be None?
             let canvas = buffer.canvas(pool)?;
             canvas.copy_from_slice(wl_ctx.base_canvas.as_ref().unwrap().get(&index).unwrap());
 
