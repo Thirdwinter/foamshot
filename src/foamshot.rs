@@ -61,7 +61,7 @@ pub fn run_main_loop() {
     println!("{:?}", shot_foam.wayland_ctx.monitors.as_ref().unwrap());
 
     loop {
-        std::thread::sleep(std::time::Duration::from_millis(16));
+        // std::thread::sleep(std::time::Duration::from_millis(16));
         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
         match &shot_foam.mode {
             Mode::Init => {}
