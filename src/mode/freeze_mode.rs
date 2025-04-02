@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use cairo::{Context, ImageSurface};
 use log::*;
@@ -20,6 +20,8 @@ pub struct FreezeMode {
     pub screencopy_frame: Option<HashMap<usize, zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>>,
     pub layer_surface: Option<HashMap<usize, zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>>,
     pub buffer: Option<HashMap<usize, Buffer>>,
+
+    previous_output_record: Option<HashSet<usize>>,
 }
 
 impl FreezeMode {
@@ -143,18 +145,26 @@ impl FreezeMode {
         // 获取 subrects，如果为 None 则返回
         let subrects = wl_ctx.subrects.as_ref()?;
 
-        for (_i, v) in subrects.iter().enumerate() {
-            let index = v.monitor_id;
+        let mut previous_outputs = self.previous_output_record.take().unwrap_or_default();
+        self.previous_output_record = Some(subrects.iter().map(|v| v.monitor_id).collect());
+        subrects.iter().for_each(|v| {
+            // filter outputs from the previous update and got removed in this update
+            previous_outputs.remove(&v.monitor_id);
+        });
 
+        for index in previous_outputs.into_iter() {
             // 获取 buffer，如果为 None 则跳过当前迭代
-            let buffer = self.buffer.as_ref()?.get(&index)?;
+            let buffer = self.buffer.as_ref().unwrap().get(&index).unwrap();
 
             // 获取 canvas，如果 pool 为 None 则返回
-            let pool = wl_ctx.pool.as_mut()?;
-            let canvas = buffer.canvas(pool)?;
-            canvas.copy_from_slice(wl_ctx.base_canvas.as_ref()?.get(&index)?);
+            let pool = wl_ctx.pool.as_mut().unwrap();
 
-            let (x, y, w, h) = (v.relative_min_x, v.relative_min_y, v.width, v.height);
+            // NOTE: why is would this be None?
+            // Should this be None?
+            // Is it okay to be None?
+            let canvas = buffer.canvas(pool).unwrap();
+            canvas.copy_from_slice(wl_ctx.base_canvas.as_ref().unwrap().get(&index).unwrap());
+
             // 创建 Cairo Surface
             let cairo_surface = unsafe {
                 ImageSurface::create_for_data_unsafe(
@@ -164,11 +174,68 @@ impl FreezeMode {
                     *heights.get(&index).unwrap_or(&0),
                     widths.get(&index).unwrap_or(&0) * 4,
                 )
-                .ok()?
+                .unwrap()
+            };
+
+            let cr = Context::new(&cairo_surface).unwrap();
+
+            // 获取Cairo表面尺寸
+            let surface_width = cairo_surface.width() as f64;
+            let surface_height = cairo_surface.height() as f64;
+
+            // 设置半透明白色
+            cr.set_source_rgba(1.0, 1.0, 1.0, 0.5);
+
+            // 绘制覆盖整个表面的矩形
+            cr.rectangle(0.0, 0.0, surface_width, surface_height);
+
+            // 填充路径区域
+            cr.fill().unwrap();
+
+            let surface = surfaces.get(&index).unwrap();
+
+            buffer.attach_to(surface).unwrap(); // 如果 attach_to 失败则返回
+
+            surface.damage_buffer(
+                0,
+                0,
+                *widths.get(&index).unwrap_or(&0),
+                *heights.get(&index).unwrap_or(&0),
+            );
+
+            // 提交 surface
+            surface.commit();
+        }
+
+        for v in subrects.iter() {
+            let index = v.monitor_id;
+
+            // 获取 buffer，如果为 None 则跳过当前迭代
+            let buffer = self.buffer.as_ref().unwrap().get(&index).unwrap();
+
+            // 获取 canvas，如果 pool 为 None 则返回
+            let pool = wl_ctx.pool.as_mut().unwrap();
+
+            // NOTE: why is would this be None?
+            // Should this be None?
+            // Is it okay to be None?
+            let canvas = buffer.canvas(pool)?;
+            canvas.copy_from_slice(wl_ctx.base_canvas.as_ref().unwrap().get(&index).unwrap());
+
+            // 创建 Cairo Surface
+            let cairo_surface = unsafe {
+                ImageSurface::create_for_data_unsafe(
+                    canvas.as_mut_ptr(),
+                    cairo::Format::ARgb32,
+                    *widths.get(&index).unwrap_or(&0),
+                    *heights.get(&index).unwrap_or(&0),
+                    widths.get(&index).unwrap_or(&0) * 4,
+                )
+                .unwrap()
             };
 
             let (x, y, w, h) = (v.relative_min_x, v.relative_min_y, v.width, v.height);
-            let cr = Context::new(&cairo_surface).ok()?;
+            let cr = Context::new(&cairo_surface).unwrap();
 
             // 获取Cairo表面尺寸
             let surface_width = cairo_surface.width() as f64;
@@ -187,11 +254,11 @@ impl FreezeMode {
             cr.set_fill_rule(cairo::FillRule::EvenOdd);
 
             // 填充路径区域
-            cr.fill().ok()?;
+            cr.fill().unwrap();
 
-            let surface = surfaces.get(&index)?;
+            let surface = surfaces.get(&index).unwrap();
 
-            buffer.attach_to(surface).ok()?; // 如果 attach_to 失败则返回
+            buffer.attach_to(surface).unwrap(); // 如果 attach_to 失败则返回
 
             surface.damage_buffer(
                 0,
