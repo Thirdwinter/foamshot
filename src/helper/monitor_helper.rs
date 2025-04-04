@@ -1,9 +1,13 @@
 #[derive(Debug, Default, Clone)]
 pub struct Monitor {
     pub name: String,
+    ///显示器 左上角 全局坐标 x
     pub x: i32,
+    ///显示器 左上角 全局坐标 y
     pub y: i32,
+    ///显示器宽度
     pub width: i32,
+    ///显示器高度
     pub height: i32,
     pub scale: i32,
 }

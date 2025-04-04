@@ -1,5 +1,4 @@
 use log::debug;
-use wayland_client::protocol::wl_shm::Format;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 

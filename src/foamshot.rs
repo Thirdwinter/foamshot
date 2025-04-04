@@ -5,6 +5,7 @@ use log::*;
 use smithay_client_toolkit::shm::{Shm, slot::SlotPool};
 use wayland_client::{Connection, globals::registry_queue_init};
 
+use crate::helper::save_helper;
 use crate::mode::{Mode, freeze_mode};
 use crate::{mode, wayland_ctx};
 
@@ -118,6 +119,7 @@ pub fn run_main_loop() {
                     "({},{}) ({},{})",
                     x0 as i32, y0 as i32, width as i32, height as i32
                 );
+                save_helper::save_to_png(&mut shot_foam.wayland_ctx).unwrap();
 
                 std::process::exit(0)
             }
