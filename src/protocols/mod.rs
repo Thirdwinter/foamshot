@@ -211,6 +211,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
             } => {
                 let a: Option<&usize> = surface.data();
                 debug!("serial {}: pointer enter surface {}", serial, a.unwrap());
+
                 app.wayland_ctx
                     .pointer_helper
                     .cursor_shape_device
