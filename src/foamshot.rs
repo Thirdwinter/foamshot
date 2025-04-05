@@ -54,7 +54,7 @@ pub fn run_main_loop() {
         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
         match &shot_foam.mode {
             Action::Init => {}
-            Action::OnFreeze => {}
+            Action::WaitPointerPress => {}
             Action::OnDraw => {
                 shot_foam.wayland_ctx.update_select_region();
             }

@@ -44,7 +44,7 @@ pub struct WaylandCtx {
     /// 每个输出设备一个
     pub foam_outputs: Option<HashMap<usize, foam_outputs::FoamOutput>>,
     pub frames_ready: usize,
-    pub freeze_ready: usize,
+    pub layer_ready: usize,
 
     /// 光标管理器
     pub pointer_helper: PointerHelper,

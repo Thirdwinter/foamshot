@@ -27,11 +27,11 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                     Action::Init => {
                         // TODO:
                         app.wayland_ctx.set_freeze_with_udata(*data);
-                        app.wayland_ctx.freeze_ready += 1;
-                        if app.wayland_ctx.freeze_ready
+                        app.wayland_ctx.layer_ready += 1;
+                        if app.wayland_ctx.layer_ready
                             == app.wayland_ctx.foam_outputs.as_ref().unwrap().len()
                         {
-                            app.mode = Action::OnFreeze;
+                            app.mode = Action::WaitPointerPress;
                         }
                     }
                     _ => {}

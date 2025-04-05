@@ -2,8 +2,6 @@ mod action;
 mod config;
 mod foam_outputs;
 mod foamshot;
-// mod freeze_mode;
-// mod monitor_helper;
 mod pointer_helper;
 mod protocols;
 mod save_helper;

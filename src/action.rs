@@ -2,7 +2,7 @@
 #[allow(unused)]
 pub enum Action {
     Init,
-    OnFreeze,
+    WaitPointerPress,
     OnDraw,
     Exit,
 }
