@@ -210,7 +210,14 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 surface_y,
             } => {
                 let a: Option<&usize> = surface.data();
-                debug!("serial {}: pointer enter surface {}", serial, a.unwrap());
+
+                debug!(
+                    "serial {}: pointer enter surface {}, surface_x:{}, surface_y:{}",
+                    serial,
+                    a.unwrap(),
+                    surface_x,
+                    surface_y
+                );
 
                 app.wayland_ctx
                     .pointer_helper
@@ -219,11 +226,32 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     .unwrap()
                     .set_shape(serial, Shape::Crosshair);
 
-                app.wayland_ctx.current_index = Some(a.unwrap().clone());
-                match app.wayland_ctx.pointer_helper.current_pos {
-                    Some(_) => (),
-                    None => {
-                        app.wayland_ctx.pointer_helper.current_pos = Some((surface_x, surface_y));
+                let foam_output = app
+                    .wayland_ctx
+                    .foam_outputs
+                    .as_ref()
+                    .unwrap()
+                    .get(a.unwrap())
+                    .unwrap();
+
+                // NOTE: 给定坐标+对应output的LogicalPosition => 相对于surface左上角的相对坐标
+                let (x, y) = (
+                    surface_x + foam_output.global_x as f64,
+                    surface_y + foam_output.global_y as f64,
+                );
+                debug!("surface enter x:{}, y:{}", x, y);
+                // FIX:
+                if x >= 0.0
+                    && y >= 0.0
+                    && x <= foam_output.width as f64
+                    && y <= foam_output.height as f64
+                {
+                    app.wayland_ctx.current_index = Some(a.unwrap().clone());
+                    match app.wayland_ctx.pointer_helper.current_pos {
+                        Some(_) => (),
+                        None => {
+                            app.wayland_ctx.pointer_helper.current_pos = Some((x, y));
+                        }
                     }
                 }
             }
