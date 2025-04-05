@@ -11,6 +11,14 @@ pub struct Monitor {
     pub height: i32,
     pub scale: i32,
 }
+#[derive(Debug, Clone)]
+pub struct SubRect {
+    pub monitor_id: usize,
+    pub relative_min_x: i32,
+    pub relative_min_y: i32,
+    pub width: i32,
+    pub height: i32,
+}
 
 impl Monitor {
     fn get_right(&self) -> i32 {
@@ -56,13 +64,4 @@ impl Monitor {
     //         height,
     //     })
     // }
-}
-
-#[derive(Debug, Clone)]
-pub struct SubRect {
-    pub monitor_id: usize,
-    pub relative_min_x: i32,
-    pub relative_min_y: i32,
-    pub width: i32,
-    pub height: i32,
 }

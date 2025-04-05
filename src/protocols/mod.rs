@@ -27,10 +27,7 @@ use wayland_protocols_wlr::{
     screencopy::v1::client::zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
 };
 
-use crate::{
-    foamshot::{FoamShot, hs_insert},
-    mode::Mode,
-};
+use crate::{action::Action, foam_outputs, foamshot::FoamShot};
 
 impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
     fn event(
@@ -74,9 +71,13 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
 
                         // 动态管理 outputs
                         _ if interface_name == wl_output::WlOutput::interface().name => {
-                            let outputs = app.wayland_ctx.outputs.get_or_insert_with(Vec::new);
+                            let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
                             let index = outputs.len();
-                            outputs.push(proxy.bind(name, version, qh, index));
+                            let foam_output = foam_outputs::FoamOutput::new(
+                                index,
+                                proxy.bind(name, version, qh, index),
+                            );
+                            outputs.insert(index, foam_output);
                         }
 
                         // Layer shell 绑定
@@ -242,7 +243,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             app.wayland_ctx.pointer_helper.start_pos =
                                 app.wayland_ctx.pointer_helper.current_pos.clone();
 
-                            app.mode = Mode::OnDraw;
+                            app.mode = Action::OnDraw;
                         }
                         wl_pointer::ButtonState::Released => {
                             app.wayland_ctx.pointer_helper.is_pressing = false;
@@ -252,7 +253,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             app.wayland_ctx.pointer_helper.end_pos =
                                 app.wayland_ctx.pointer_helper.current_pos.clone();
 
-                            app.mode = Mode::Exit;
+                            app.mode = Action::Exit;
                         }
                         _ => (),
                     }
@@ -266,7 +267,8 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 // debug!("Pointer::Motion => x: {}, y: {}", surface_x, surface_y);
                 app.wayland_ctx.pointer_helper.current_pos = Some((surface_x, surface_y));
                 match app.mode {
-                    Mode::OnDraw => {
+                    Action::OnDraw => {
+                        // TODO:
                         app.wayland_ctx.generate_sub_rects();
                     }
                     _ => (),
@@ -321,8 +323,11 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                 height,
                 refresh: _,
             } => {
-                hs_insert(&mut app.wayland_ctx.widths, *data, width);
-                hs_insert(&mut app.wayland_ctx.heights, *data, height);
+                let mut foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
+                foam_output.as_mut().unwrap().width = width;
+                foam_output.as_mut().unwrap().height = height;
+                // hs_insert(&mut app.wayland_ctx.widths, *data, width);
+                // hs_insert(&mut app.wayland_ctx.heights, *data, height);
             }
             wl_output::Event::Geometry {
                 x,
@@ -344,7 +349,7 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                     return;
                 };
                 // create an xdg_output object for this wl_output
-                let _ = xdg_output_manager.get_xdg_output(proxy, &qh, *data as i64);
+                let _ = xdg_output_manager.get_xdg_output(proxy, &qh, *data);
 
                 let Some((compositor, _)) = &app.wayland_ctx.compositor else {
                     error!("No Compositor");
@@ -352,12 +357,14 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                 };
                 // TODO: create surface
                 trace!("create surface");
-                hs_insert(
-                    &mut app.freeze_mode.surface,
-                    *data,
-                    compositor.create_surface(&qh, *data),
-                );
-                app.editor_mode.surface = Some(compositor.create_surface(&qh, *data));
+                let foam_output = app
+                    .wayland_ctx
+                    .foam_outputs
+                    .as_mut()
+                    .unwrap()
+                    .get_mut(data)
+                    .unwrap();
+                foam_output.surface = Some(compositor.create_surface(&qh, *data));
             }
             _ => {}
         };

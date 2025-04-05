@@ -1,8 +1,12 @@
+mod action;
 mod config;
+mod foam_outputs;
 mod foamshot;
-mod helper;
-mod mode;
+// mod freeze_mode;
+// mod monitor_helper;
+mod pointer_helper;
 mod protocols;
+mod save_helper;
 mod wayland_ctx;
 
 fn main() {

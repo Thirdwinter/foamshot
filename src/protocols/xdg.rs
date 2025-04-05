@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
 use log::info;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 use wayland_protocols::xdg::xdg_output::zv1::client::{zxdg_output_manager_v1, zxdg_output_v1};
 
 use crate::foamshot::FoamShot;
-use crate::helper::monitor_helper::Monitor;
 
 // NOTE: unused
 #[allow(unused_variables)]
@@ -24,43 +21,50 @@ impl Dispatch<zxdg_output_manager_v1::ZxdgOutputManagerV1, ()> for FoamShot {
 }
 // TODO:
 #[allow(unused_variables)]
-impl Dispatch<zxdg_output_v1::ZxdgOutputV1, i64> for FoamShot {
+impl Dispatch<zxdg_output_v1::ZxdgOutputV1, usize> for FoamShot {
     fn event(
         app: &mut Self,
         proxy: &zxdg_output_v1::ZxdgOutputV1,
         event: <zxdg_output_v1::ZxdgOutputV1 as Proxy>::Event,
-        data: &i64,
+        data: &usize,
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        // 类型转换确保与HashMap键类型一致
-        let monitor_id = *data as usize;
-
-        // 使用Entry API保证原子性操作
-        let monitors = app
+        let foam_output = app
             .wayland_ctx
-            .monitors
-            .get_or_insert_with(|| HashMap::new());
-
-        let monitor = monitors.entry(monitor_id).or_insert_with(|| Monitor {
-            x: 0,
-            y: 0,
-            width: 0,
-            height: 0,
-            name: String::new(),
-            scale: 1,
-        });
+            .foam_outputs
+            .as_mut()
+            .unwrap()
+            .get_mut(data)
+            .unwrap();
+        // // 类型转换确保与HashMap键类型一致
+        // let monitor_id = *data as usize;
+        //
+        // // 使用Entry API保证原子性操作
+        // let monitors = app
+        //     .wayland_ctx
+        //     .monitors
+        //     .get_or_insert_with(|| HashMap::new());
+        //
+        // let monitor = monitors.entry(monitor_id).or_insert_with(|| Monitor {
+        //     x: 0,
+        //     y: 0,
+        //     width: 0,
+        //     height: 0,
+        //     name: String::new(),
+        //     scale: 1,
+        // });
 
         match event {
             zxdg_output_v1::Event::LogicalPosition { x, y } => {
                 info!("LogicalPosition: ({}, {})", x, y);
-                monitor.x = x;
-                monitor.y = y;
+                foam_output.global_x = x;
+                foam_output.global_y = y;
             }
             zxdg_output_v1::Event::LogicalSize { width, height } => {
                 info!("LogicalSize: {}x{}", width, height);
-                monitor.width = width;
-                monitor.height = height;
+                foam_output.logical_width = width;
+                foam_output.logical_height = height;
             }
             zxdg_output_v1::Event::Description { description } => {
                 info!("Description: {}", description);
@@ -68,15 +72,15 @@ impl Dispatch<zxdg_output_v1::ZxdgOutputV1, i64> for FoamShot {
             }
             zxdg_output_v1::Event::Name { name } => {
                 info!("Name: {}", name);
-                monitor.name = name;
+                foam_output.name = name;
             }
             _ => (),
         }
 
         // 当所有必要属性收集完成后
-        if monitor.is_complete() {
-            info!("Monitor {} complete", monitor_id);
-        }
+        // if monitor.is_complete() {
+        //     info!("Monitor {} complete", monitor_id);
+        // }
     }
 }
 
@@ -137,12 +141,7 @@ impl Dispatch<xdg_toplevel::XdgToplevel, ()> for FoamShot {
                 width,
                 height,
                 states,
-            } => {
-                // info!("Configure: {}, {}, states: {:?}", width, height, states);
-                // app.editor_mode.window_width = Some(width);
-                // app.editor_mode.window_height = Some(height);
-                // app.editor_mode.resize(&mut app.wayland_ctx, width, height);
-            }
+            } => {}
             _ => (),
         }
         // todo!()

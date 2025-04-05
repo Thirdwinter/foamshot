@@ -2,8 +2,8 @@ use log::debug;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 
+use crate::action::Action;
 use crate::foamshot::FoamShot;
-use crate::mode::Mode;
 
 impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
     fn event(
@@ -24,14 +24,14 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                 proxy.ack_configure(serial);
                 proxy.set_size(width, height);
                 match app.mode {
-                    Mode::Init => {
-                        app.freeze_mode
-                            .set_freeze_with_udata(&mut app.wayland_ctx, data.clone());
+                    Action::Init => {
+                        // TODO:
+                        app.wayland_ctx.set_freeze_with_udata(*data);
                         app.wayland_ctx.freeze_ready += 1;
                         if app.wayland_ctx.freeze_ready
-                            == app.wayland_ctx.outputs.as_ref().unwrap().len()
+                            == app.wayland_ctx.foam_outputs.as_ref().unwrap().len()
                         {
-                            app.mode = Mode::OnFreeze;
+                            app.mode = Action::OnFreeze;
                         }
                     }
                     _ => {}
