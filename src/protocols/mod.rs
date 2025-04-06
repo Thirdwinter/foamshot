@@ -7,11 +7,11 @@ mod zwlr_screencopy_manager_v1;
 use log::*;
 use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
 use wayland_client::{
-    Dispatch, Proxy,
-    globals::GlobalListContents,
-    protocol::{
+    globals::GlobalListContents, protocol::{
         wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
     },
+    Dispatch,
+    Proxy,
 };
 use wayland_protocols::{
     wp::{

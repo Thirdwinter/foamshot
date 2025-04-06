@@ -1,6 +1,6 @@
 use log::*;
-use smithay_client_toolkit::shm::{Shm, slot::SlotPool};
-use wayland_client::{Connection, globals::registry_queue_init};
+use smithay_client_toolkit::shm::{slot::SlotPool, Shm};
+use wayland_client::{globals::registry_queue_init, Connection};
 
 use crate::{
     action::{self, Action},

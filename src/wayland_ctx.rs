@@ -9,8 +9,8 @@ use smithay_client_toolkit::shm::{
     slot::{self},
 };
 use wayland_client::{
-    QueueHandle,
     protocol::{wl_compositor, wl_keyboard, wl_seat},
+    QueueHandle,
 };
 use wayland_protocols::{
     wp::{

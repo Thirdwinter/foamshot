@@ -1,6 +1,5 @@
-use wayland_client::QueueHandle;
 use wayland_client::protocol::wl_pointer;
-use wayland_protocols::wp::cursor_shape;
+use wayland_client::QueueHandle;
 use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
 };
@@ -44,7 +43,7 @@ impl PointerHelper {
         &mut self,
         qh: &QueueHandle<FoamShot>,
         serial: u32,
-        shape: cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape,
+        shape: wp_cursor_shape_device_v1::Shape,
     ) -> &mut Self {
         // 确保设备已初始化
         self.ensure_cursor_device(qh);

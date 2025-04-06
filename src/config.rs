@@ -2,7 +2,8 @@ use chrono::Local;
 use clap::Parser;
 use directories::UserDirs;
 use log::info;
-use std::path::PathBuf; // 引入 chrono 库用于时间处理
+use std::path::PathBuf;
+// 引入 chrono 库用于时间处理
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

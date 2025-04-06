@@ -1,8 +1,8 @@
 use cairo::{Context, ImageSurface};
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::{
-    QueueHandle,
     protocol::{wl_output, wl_shm::Format, wl_surface},
+    QueueHandle,
 };
 use wayland_protocols_wlr::{
     layer_shell::v1::client::{
