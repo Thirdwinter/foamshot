@@ -7,7 +7,7 @@ use log::{debug, error};
 use smithay_client_toolkit::shm::{self};
 use wayland_client::{
     QueueHandle,
-    protocol::{wl_compositor, wl_keyboard, wl_seat},
+    protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat},
 };
 use wayland_protocols::{
     wp::{
@@ -62,9 +62,9 @@ impl WaylandCtx {
             ..Default::default()
         }
     }
-    pub fn set_cursor_shape(&mut self, serial: u32, shape: Shape) {
+    pub fn set_cursor_shape(&mut self, serial: u32, shape: Shape, pointer: &wl_pointer::WlPointer) {
         self.pointer_helper
-            .set_cursor_shape(self.qh.as_ref().unwrap(), serial, shape);
+            .set_cursor_shape(self.qh.as_ref().unwrap(), serial, shape, pointer);
     }
 
     pub fn init_base_layers(&mut self) {
@@ -78,11 +78,8 @@ impl WaylandCtx {
 
     pub fn set_freeze_with_udata(&mut self, udata: usize) {
         let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(&udata);
-        foam_output.as_mut().unwrap().set_freeze();
-        // foam_output
-        //     .as_mut()
-        //     .unwrap()
-        //     .no_freeze(self.pool.as_mut().unwrap());
+        // foam_output.as_mut().unwrap().set_freeze();
+        foam_output.as_mut().unwrap().no_freeze();
     }
 
     pub fn request_screencopy(&mut self) {
@@ -116,7 +113,7 @@ impl WaylandCtx {
 
     #[allow(unused)]
     pub fn request_screencopy_with_udata(&self, udata: usize) {
-        debug!("output:{} 发起屏幕copy请求", udata);
+        // debug!("output:{} 发起屏幕copy请求", udata);
         let screencopy_manager = if let Some((ref manager, _)) = self.screencopy_manager {
             manager
         } else {
@@ -177,13 +174,14 @@ impl WaylandCtx {
                 m.subrect = None;
             }
 
-            debug!("id:{}, subrect:{:?}", _id, m.subrect);
+            // debug!("id:{}, subrect:{:?}", _id, m.subrect);
         }
     }
 
     pub fn update_select_region(&mut self) {
-        for (_, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
-            v.update_select_subrect();
+        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+            v.send_next_frame(self.qh.as_ref().unwrap(), *i);
+            // v.update_select_subrect();
         }
     }
 

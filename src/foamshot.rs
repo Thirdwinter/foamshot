@@ -33,24 +33,6 @@ pub fn run_main_loop() {
 
     // NOTE: 请求全屏copy，之后该去protocols::zwlr_screencopy_manager_v1中依次处理event
     shot_foam.wayland_ctx.request_screencopy();
-    // for i in vec![0usize, 1usize] {
-    //     shot_foam.wayland_ctx.request_screencopy_with_udata(i);
-    //     loop {
-    //         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
-    //         if shot_foam
-    //             .wayland_ctx
-    //             .foam_outputs
-    //             .as_ref()
-    //             .unwrap()
-    //             .get(&i)
-    //             .unwrap()
-    //             .is_copy_ready
-    //         {
-    //             debug!("output:{} 结束等待", i);
-    //             break;
-    //         }
-    //     }
-    // }
 
     // 等待所有屏幕copy完成
     while shot_foam.wayland_ctx.frames_ready
@@ -63,7 +45,6 @@ pub fn run_main_loop() {
 
     // NOTE: 创建layer && surface提交
     shot_foam.wayland_ctx.init_base_layers();
-    // shot_foam.freeze_mode.before(&mut shot_foam.wayland_ctx);
 
     // NOTE: 等待处理事件
     event_queue.blocking_dispatch(&mut shot_foam).unwrap();

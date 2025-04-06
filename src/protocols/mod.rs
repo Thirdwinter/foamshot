@@ -13,7 +13,8 @@ use wayland_client::{
     Dispatch, Proxy,
     globals::GlobalListContents,
     protocol::{
-        wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
+        wl_callback, wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat,
+        wl_surface,
     },
 };
 use wayland_protocols::{
@@ -204,7 +205,8 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
     ) {
         match event {
             wl_pointer::Event::Leave { serial, surface } => {
-                app.wayland_ctx.set_cursor_shape(serial, Shape::Default);
+                app.wayland_ctx
+                    .set_cursor_shape(serial, Shape::Default, proxy);
             }
             wl_pointer::Event::Enter {
                 serial,
@@ -222,7 +224,8 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     surface_y
                 );
 
-                app.wayland_ctx.set_cursor_shape(serial, Shape::Crosshair);
+                app.wayland_ctx
+                    .set_cursor_shape(serial, Shape::Crosshair, proxy);
 
                 let foam_output = app
                     .wayland_ctx
@@ -317,7 +320,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     .unwrap()
                     .get(&unknow_index)
                     .unwrap();
-                debug!("motion: surface_x:{}, surface_y:{}", surface_x, surface_y);
+                // debug!("motion: surface_x:{}, surface_y:{}", surface_x, surface_y);
                 let (x, y) = foam_outputs::FoamOutput::convert_pos_to_surface(
                     unkonw_output,
                     start_output,
@@ -482,6 +485,29 @@ impl Dispatch<wl_seat::WlSeat, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
+    }
+}
+
+impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
+    fn event(
+        app: &mut Self,
+        proxy: &wl_callback::WlCallback,
+        event: <wl_callback::WlCallback as Proxy>::Event,
+        data: &usize,
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
+        let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
+        match app.mode {
+            Action::OnDraw => {
+                if outputs.get_mut(data).unwrap().is_dirty() {
+                    outputs.get_mut(data).unwrap().update_select_subrect();
+                }
+            }
+            _ => {}
+        }
+
+        // todo!()
     }
 }
 

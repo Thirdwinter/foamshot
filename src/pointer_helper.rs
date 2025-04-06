@@ -1,5 +1,5 @@
-use wayland_client::protocol::wl_pointer;
 use wayland_client::QueueHandle;
+use wayland_client::protocol::wl_pointer;
 use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
 };
@@ -28,10 +28,14 @@ pub struct PointerHelper {
 impl PointerHelper {
     /// 确保cursor_shape_device存在
     #[inline(always)]
-    fn ensure_cursor_device(&mut self, qh: &QueueHandle<FoamShot>) {
+    fn ensure_cursor_device(
+        &mut self,
+        qh: &QueueHandle<FoamShot>,
+        pointer: &wl_pointer::WlPointer,
+    ) {
         if self.cursor_shape_device.is_none() {
             let manager = &self.cursor_shape_manager.as_ref().unwrap().0;
-            let pointer = self.pointer.as_ref().unwrap();
+            // let pointer = self.pointer.as_ref().unwrap();
             let device = manager.get_pointer(pointer, qh, ());
             self.cursor_shape_device = Some(device);
         }
@@ -44,9 +48,10 @@ impl PointerHelper {
         qh: &QueueHandle<FoamShot>,
         serial: u32,
         shape: wp_cursor_shape_device_v1::Shape,
+        pointer: &wl_pointer::WlPointer,
     ) -> &mut Self {
         // 确保设备已初始化
-        self.ensure_cursor_device(qh);
+        self.ensure_cursor_device(qh, pointer);
 
         // 安全unwrap，因为ensure_cursor_device保证设备存在
         self.cursor_shape_device

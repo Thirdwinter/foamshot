@@ -1,4 +1,5 @@
 use cairo::{Context, ImageSurface};
+use log::debug;
 use smithay_client_toolkit::shm::slot::{self, Buffer, SlotPool};
 use wayland_client::{
     QueueHandle,
@@ -13,26 +14,6 @@ use wayland_protocols_wlr::{
 };
 
 use crate::foamshot::FoamShot;
-
-#[derive(Debug, Clone, Default)]
-pub struct SubRect {
-    pub monitor_id: usize,
-    pub relative_min_x: i32,
-    pub relative_min_y: i32,
-    pub width: i32,
-    pub height: i32,
-}
-impl SubRect {
-    pub fn new(id: usize, x: i32, y: i32, w: i32, h: i32) -> Self {
-        Self {
-            monitor_id: id,
-            relative_min_x: x,
-            relative_min_y: y,
-            width: w,
-            height: h,
-        }
-    }
-}
 
 /// NOTE: 为物理显示器做的抽象，包含其基础信息
 #[derive(Default)]
@@ -65,6 +46,7 @@ pub struct FoamOutput {
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
+    pub old_subrect: Option<SubRect>,
 
     /// TEST:
     pub pool: Option<slot::SlotPool>,
@@ -104,12 +86,6 @@ impl FoamOutput {
             self.subrect = None
         }
         self.subrect = Some(SubRect::new(self.id, x, y, w, h))
-    }
-    pub fn has_subrect(&self) -> bool {
-        match self.subrect {
-            None => false,
-            Some(_) => true,
-        }
     }
 
     pub fn init_layer(
@@ -179,12 +155,10 @@ impl FoamOutput {
         surface.damage_buffer(0, 0, w, h);
         surface.commit();
     }
-    pub fn no_freeze(&mut self, pool: &mut SlotPool) {
+    pub fn no_freeze(&mut self) {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
-        // let buffer = self.base_buffer.as_mut().unwrap();
-        //
-        // let canvas = buffer.canvas(pool).unwrap();
+        let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         let cairo_surface = unsafe {
             ImageSurface::create_for_data_unsafe(
@@ -205,17 +179,45 @@ impl FoamOutput {
         surface.commit();
     }
 
-    pub fn update_select_subrect(&mut self) {
-        if !self.has_subrect() {
-            // debug!("output {}, no subrect", self.name);
-            return;
+    #[inline(always)]
+    pub fn is_subrect_changed(&self) -> bool {
+        match self.old_subrect.as_ref() {
+            // 当old存在时，检查new是否存在以及值是否相同
+            Some(old) => self.subrect.as_ref().map_or(true, |new| old != new),
+            // old不存在时必然发生变化
+            None => true,
         }
+    }
+    #[inline(always)]
+    pub fn has_subrect(&self) -> bool {
+        match self.subrect {
+            None => false,
+            Some(_) => true,
+        }
+    }
+
+    pub fn is_dirty(&mut self) -> bool {
+        if self.has_subrect() && self.is_subrect_changed() {
+            true
+        } else {
+            false
+        }
+    }
+    pub fn send_next_frame(&mut self, qh: &QueueHandle<FoamShot>, udata: usize) {
+        let surface = self.surface.as_mut().unwrap();
+        surface.frame(qh, udata);
+    }
+
+    pub fn update_select_subrect(&mut self) {
+        // NOTE: 绘制之前刷新缓存
+        self.old_subrect = self.subrect.clone();
+
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
         let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
-        // canvas.fill(0);
-        canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
+        canvas.fill(0);
+        // canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
 
         let cairo_surface = unsafe {
             ImageSurface::create_for_data_unsafe(
@@ -263,4 +265,24 @@ impl FoamOutput {
     }
 
     pub fn unset_freeze(&mut self) {}
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SubRect {
+    pub monitor_id: usize,
+    pub relative_min_x: i32,
+    pub relative_min_y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+impl SubRect {
+    pub fn new(id: usize, x: i32, y: i32, w: i32, h: i32) -> Self {
+        Self {
+            monitor_id: id,
+            relative_min_x: x,
+            relative_min_y: y,
+            width: w,
+            height: h,
+        }
+    }
 }
