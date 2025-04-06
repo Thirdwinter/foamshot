@@ -1,6 +1,6 @@
 use log::*;
-use smithay_client_toolkit::shm::{slot::SlotPool, Shm};
-use wayland_client::{globals::registry_queue_init, Connection};
+use smithay_client_toolkit::shm::{Shm, slot::SlotPool};
+use wayland_client::{Connection, globals::registry_queue_init};
 
 use crate::{
     action::{self, Action},
@@ -24,8 +24,8 @@ pub fn run_main_loop() {
     let _registry = display.get_registry(&qh, ());
 
     let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
-    let pool = SlotPool::new(256 * 256 * 4, &shm).expect("Failed to create pool");
-    let mut shot_foam = FoamShot::new(shm, pool, qh);
+    // let pool = SlotPool::new(256 * 256 * 4, &shm).expect("Failed to create pool");
+    let mut shot_foam = FoamShot::new(shm, qh);
 
     event_queue.roundtrip(&mut shot_foam).expect("init failed");
 
@@ -33,6 +33,24 @@ pub fn run_main_loop() {
 
     // NOTE: 请求全屏copy，之后该去protocols::zwlr_screencopy_manager_v1中依次处理event
     shot_foam.wayland_ctx.request_screencopy();
+    // for i in vec![0usize, 1usize] {
+    //     shot_foam.wayland_ctx.request_screencopy_with_udata(i);
+    //     loop {
+    //         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
+    //         if shot_foam
+    //             .wayland_ctx
+    //             .foam_outputs
+    //             .as_ref()
+    //             .unwrap()
+    //             .get(&i)
+    //             .unwrap()
+    //             .is_copy_ready
+    //         {
+    //             debug!("output:{} 结束等待", i);
+    //             break;
+    //         }
+    //     }
+    // }
 
     // 等待所有屏幕copy完成
     while shot_foam.wayland_ctx.frames_ready
@@ -69,9 +87,9 @@ pub fn run_main_loop() {
 }
 
 impl FoamShot {
-    pub fn new(shm: Shm, pool: SlotPool, qh: wayland_client::QueueHandle<FoamShot>) -> FoamShot {
+    pub fn new(shm: Shm, qh: wayland_client::QueueHandle<FoamShot>) -> FoamShot {
         Self {
-            wayland_ctx: wayland_ctx::WaylandCtx::new(shm, pool, qh),
+            wayland_ctx: wayland_ctx::WaylandCtx::new(shm, qh),
             mode: Action::default(),
         }
     }

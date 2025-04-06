@@ -5,13 +5,16 @@ mod zwlr_layer_shell_v1;
 mod zwlr_screencopy_manager_v1;
 
 use log::*;
-use smithay_client_toolkit::{delegate_shm, shm::ShmHandler};
+use smithay_client_toolkit::{
+    delegate_shm,
+    shm::{ShmHandler, slot::SlotPool},
+};
 use wayland_client::{
-    globals::GlobalListContents, protocol::{
+    Dispatch, Proxy,
+    globals::GlobalListContents,
+    protocol::{
         wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
     },
-    Dispatch,
-    Proxy,
 };
 use wayland_protocols::{
     wp::{
@@ -73,9 +76,13 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                         _ if interface_name == wl_output::WlOutput::interface().name => {
                             let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
                             let index = outputs.len();
+                            let shm = app.wayland_ctx.shm.as_mut().unwrap();
+                            let pool =
+                                SlotPool::new(256 * 256 * 4, shm).expect("Failed to create pool");
                             let foam_output = foam_outputs::FoamOutput::new(
                                 index,
                                 proxy.bind(name, version, qh, index),
+                                pool,
                             );
                             outputs.insert(index, foam_output);
                         }

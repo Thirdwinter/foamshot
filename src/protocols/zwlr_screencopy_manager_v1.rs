@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{error, trace};
+use log::{debug, error, trace, warn};
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
@@ -20,6 +20,16 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
         _qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
+            zwlr_screencopy_frame_v1::Event::LinuxDmabuf {
+                format,
+                width,
+                height,
+            } => {
+                debug!(
+                    "copy buffer is linuxdmabuf width:{}, height: {}, format: {}",
+                    width, height, format
+                );
+            }
             zwlr_screencopy_frame_v1::Event::Buffer {
                 format,
                 width,
@@ -30,8 +40,15 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                     "creating buffer: data is {}, width: {}, height: {}, stride: {}, format: {:?}",
                     data, width, height, stride, format
                 );
-                let (buffer, _canvas) = app
+                let current = app
                     .wayland_ctx
+                    .foam_outputs
+                    .as_mut()
+                    .unwrap()
+                    .get_mut(data)
+                    .unwrap();
+
+                let (buffer, _canvas) = current
                     .pool
                     .as_mut()
                     .unwrap()
@@ -39,36 +56,49 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                         width as i32,
                         height as i32,
                         stride as i32,
-                        format.into_result().expect("Unsupported format"),
+                        format.into_result().unwrap(),
                     )
                     .unwrap();
-                let foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
-                foam_output.unwrap().base_buffer = Some(buffer);
+                // let (buffer, _canvas) = app
+                //     .wayland_ctx
+                //     .pool
+                //     .as_mut()
+                //     .unwrap()
+                //     .create_buffer(
+                //         width as i32,
+                //         height as i32,
+                //         stride as i32,
+                //         format.into_result().expect("Unsupported format"),
+                //     )
+                //     .unwrap();
+                // let foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
+                current.base_buffer = Some(buffer);
             }
             zwlr_screencopy_frame_v1::Event::BufferDone { .. } => {
+                trace!("bufferdone => data:{}, copy frame to buffer", data);
                 let mut foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
-                proxy.copy(
-                    foam_output
-                        .as_mut()
-                        .unwrap()
-                        .base_buffer
-                        .as_mut()
-                        .unwrap()
-                        .wl_buffer(),
-                );
-                // let Some(buffer) = &app.wayland_ctx.base_buffers else {
-                //     error!("Could not load WlBuffers");
-                //     return;
-                // };
-                trace!("data:{}, copy frame to buffer", data);
-                // // copy frame to buffer, sends Ready when successful
-                // proxy.copy(buffer.get(data).unwrap().wl_buffer());
+                let buffer = foam_output
+                    .as_mut()
+                    .unwrap()
+                    .base_buffer
+                    .as_mut()
+                    .unwrap()
+                    .wl_buffer();
+                proxy.copy(buffer);
             }
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
                 trace!("data:{}, frame ready", data);
+                // app.wayland_ctx
+                //     .foam_outputs
+                //     .as_mut()
+                //     .unwrap()
+                //     .get_mut(data)
+                //     .unwrap()
+                //     .is_copy_ready = true;
                 app.wayland_ctx.frames_ready += 1;
             }
             zwlr_screencopy_frame_v1::Event::Failed => {
+                warn!("buffer copy error");
                 app.mode = Action::Exit;
             }
             _ => (),

@@ -1,8 +1,8 @@
 use cairo::{Context, ImageSurface};
-use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
+use smithay_client_toolkit::shm::slot::{self, Buffer, SlotPool};
 use wayland_client::{
-    protocol::{wl_output, wl_shm::Format, wl_surface},
     QueueHandle,
+    protocol::{wl_output, wl_shm::Format, wl_surface},
 };
 use wayland_protocols_wlr::{
     layer_shell::v1::client::{
@@ -66,7 +66,11 @@ pub struct FoamOutput {
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
 
+    /// TEST:
+    pub pool: Option<slot::SlotPool>,
+
     pub is_layer_config: bool,
+    pub is_copy_ready: bool,
 }
 
 #[allow(unused)]
@@ -85,12 +89,13 @@ impl FoamOutput {
 
         (dst_x, dst_y)
     }
-    pub fn new(id: usize, output: wl_output::WlOutput) -> Self {
+    pub fn new(id: usize, output: wl_output::WlOutput, pool: SlotPool) -> Self {
         Self {
             id,
             output: Some(output),
             scale: 1,
             name: "unnamed".to_string(),
+            pool: Some(pool),
             ..Default::default()
         }
     }
@@ -142,15 +147,17 @@ impl FoamOutput {
         surface.commit();
     }
 
-    pub fn store_canvas(&mut self, pool: &mut SlotPool) {
+    pub fn store_canvas(&mut self) {
         let buffer = self.base_buffer.as_ref().unwrap();
+        let pool = self.pool.as_mut().unwrap();
         let canvas: &mut [u8] = buffer.canvas(pool).unwrap();
         self.base_canvas = Some(canvas.to_vec())
     }
 
-    pub fn set_freeze(&mut self, pool: &mut SlotPool) {
+    pub fn set_freeze(&mut self) {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
+        let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         // canvas.fill(0);
         canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
@@ -198,13 +205,14 @@ impl FoamOutput {
         surface.commit();
     }
 
-    pub fn update_select_subrect(&mut self, pool: &mut SlotPool) {
+    pub fn update_select_subrect(&mut self) {
         if !self.has_subrect() {
             // debug!("output {}, no subrect", self.name);
             return;
         }
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
+        let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         // canvas.fill(0);
         canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
