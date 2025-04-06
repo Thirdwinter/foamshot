@@ -239,6 +239,12 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     debug!("surface enter output:{} x:{}, y:{}", foam_output.name, x, y);
 
                     app.wayland_ctx.current_index = Some(a.unwrap().clone());
+                    match app.wayland_ctx.pointer_helper.start_index {
+                        Some(_) => (),
+                        None => {
+                            app.wayland_ctx.pointer_helper.start_index = Some(a.unwrap().clone());
+                        }
+                    }
                     match app.wayland_ctx.pointer_helper.current_pos {
                         Some(_) => (),
                         None => {

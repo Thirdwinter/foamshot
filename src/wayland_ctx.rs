@@ -81,14 +81,14 @@ impl WaylandCtx {
 
     pub fn set_freeze_with_udata(&mut self, udata: usize) {
         let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(&udata);
-        // foam_output
-        //     .as_mut()
-        //     .unwrap()
-        //     .set_freeze(self.pool.as_mut().unwrap());
         foam_output
             .as_mut()
             .unwrap()
-            .no_freeze(self.pool.as_mut().unwrap());
+            .set_freeze(self.pool.as_mut().unwrap());
+        // foam_output
+        //     .as_mut()
+        //     .unwrap()
+        //     .no_freeze(self.pool.as_mut().unwrap());
     }
 
     pub fn request_screencopy(&mut self) {

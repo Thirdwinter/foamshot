@@ -65,6 +65,8 @@ pub struct FoamOutput {
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
+
+    pub is_layer_config: bool,
 }
 
 #[allow(unused)]
@@ -149,9 +151,9 @@ impl FoamOutput {
     pub fn set_freeze(&mut self, pool: &mut SlotPool) {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
-        let buffer = self.base_buffer.as_mut().unwrap();
-
-        let canvas = buffer.canvas(pool).unwrap();
+        let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
+        // canvas.fill(0);
+        canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
         let cairo_surface = unsafe {
             ImageSurface::create_for_data_unsafe(
                 canvas.as_mut_ptr(),
@@ -204,8 +206,8 @@ impl FoamOutput {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
-        // canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
-        canvas.fill(0);
+        // canvas.fill(0);
+        canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
 
         let cairo_surface = unsafe {
             ImageSurface::create_for_data_unsafe(
