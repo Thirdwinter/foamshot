@@ -106,12 +106,13 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             {
                                 let manager: WpCursorShapeManagerV1 =
                                     proxy.bind(name, version, qh, ());
-                                let pointer =
-                                    app.wayland_ctx.pointer_helper.pointer.as_ref().unwrap();
-                                let device = manager.get_pointer(pointer, qh, ());
                                 app.wayland_ctx.pointer_helper.cursor_shape_manager =
                                     Some((manager, name));
-                                app.wayland_ctx.pointer_helper.cursor_shape_device = Some(device);
+                                // FIX: this time meybe can not get wl_pointer
+                                // let pointer =
+                                //     app.wayland_ctx.pointer_helper.pointer.as_ref().unwrap();
+                                // let device = manager.get_pointer(pointer, qh, ());
+                                // app.wayland_ctx.pointer_helper.cursor_shape_device = Some(device);
                             }
                         }
                         // NOTE: xdg_output_manager 处理 多输出
@@ -196,12 +197,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
     ) {
         match event {
             wl_pointer::Event::Leave { serial, surface } => {
-                app.wayland_ctx
-                    .pointer_helper
-                    .cursor_shape_device
-                    .as_ref()
-                    .unwrap()
-                    .set_shape(serial, Shape::Default);
+                app.wayland_ctx.set_cursor_shape(serial, Shape::Default);
             }
             wl_pointer::Event::Enter {
                 serial,
@@ -210,7 +206,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 surface_y,
             } => {
                 let a: Option<&usize> = surface.data();
-
+                app.wayland_ctx.unknow_index = a.copied();
                 debug!(
                     "serial {}: pointer enter surface {}, surface_x:{}, surface_y:{}",
                     serial,
@@ -219,12 +215,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     surface_y
                 );
 
-                app.wayland_ctx
-                    .pointer_helper
-                    .cursor_shape_device
-                    .as_ref()
-                    .unwrap()
-                    .set_shape(serial, Shape::Crosshair);
+                app.wayland_ctx.set_cursor_shape(serial, Shape::Crosshair);
 
                 let foam_output = app
                     .wayland_ctx
@@ -239,13 +230,14 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     surface_x + foam_output.global_x as f64,
                     surface_y + foam_output.global_y as f64,
                 );
-                debug!("surface enter x:{}, y:{}", x, y);
                 // FIX:
                 if x >= 0.0
                     && y >= 0.0
                     && x <= foam_output.width as f64
                     && y <= foam_output.height as f64
                 {
+                    debug!("surface enter output:{} x:{}, y:{}", foam_output.name, x, y);
+
                     app.wayland_ctx.current_index = Some(a.unwrap().clone());
                     match app.wayland_ctx.pointer_helper.current_pos {
                         Some(_) => (),
@@ -272,6 +264,8 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             app.wayland_ctx.pointer_helper.start_pos =
                                 app.wayland_ctx.pointer_helper.current_pos.clone();
 
+                            app.wayland_ctx.generate_sub_rects();
+
                             app.mode = Action::OnDraw;
                         }
                         wl_pointer::ButtonState::Released => {
@@ -294,7 +288,31 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 surface_y,
             } => {
                 // debug!("Pointer::Motion => x: {}, y: {}", surface_x, surface_y);
-                app.wayland_ctx.pointer_helper.current_pos = Some((surface_x, surface_y));
+                let unknow_index = app.wayland_ctx.unknow_index.unwrap();
+                let start_index = app.wayland_ctx.pointer_helper.start_index.unwrap();
+                let start_output = app
+                    .wayland_ctx
+                    .foam_outputs
+                    .as_ref()
+                    .unwrap()
+                    .get(&start_index)
+                    .unwrap();
+                let unkonw_output = app
+                    .wayland_ctx
+                    .foam_outputs
+                    .as_ref()
+                    .unwrap()
+                    .get(&unknow_index)
+                    .unwrap();
+                debug!("motion: surface_x:{}, surface_y:{}", surface_x, surface_y);
+                let (x, y) = foam_outputs::FoamOutput::convert_pos_to_surface(
+                    unkonw_output,
+                    start_output,
+                    surface_x,
+                    surface_y,
+                );
+
+                app.wayland_ctx.pointer_helper.current_pos = Some((x, y));
                 match app.mode {
                     Action::OnDraw => {
                         // TODO:

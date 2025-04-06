@@ -13,7 +13,10 @@ use wayland_client::{
     protocol::{wl_compositor, wl_keyboard, wl_seat},
 };
 use wayland_protocols::{
-    wp::viewporter::client::wp_viewporter,
+    wp::{
+        cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape,
+        viewporter::client::wp_viewporter,
+    },
     xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
 };
 use wayland_protocols_wlr::{
@@ -40,6 +43,8 @@ pub struct WaylandCtx {
     pub viewporter: Option<(wp_viewporter::WpViewporter, u32)>,
 
     pub current_index: Option<usize>,
+    /// FIX: 不符合预期的pointer事件，用于记录其中的 surface 索引
+    pub unknow_index: Option<usize>,
 
     /// 每个输出设备一个
     pub foam_outputs: Option<HashMap<usize, foam_outputs::FoamOutput>>,
@@ -60,6 +65,10 @@ impl WaylandCtx {
             ..Default::default()
         }
     }
+    pub fn set_cursor_shape(&mut self, serial: u32, shape: Shape) {
+        self.pointer_helper
+            .set_cursor_shape(self.qh.as_ref().unwrap(), serial, shape);
+    }
 
     pub fn init_base_layers(&mut self) {
         for (_, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
@@ -72,10 +81,14 @@ impl WaylandCtx {
 
     pub fn set_freeze_with_udata(&mut self, udata: usize) {
         let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(&udata);
+        // foam_output
+        //     .as_mut()
+        //     .unwrap()
+        //     .set_freeze(self.pool.as_mut().unwrap());
         foam_output
             .as_mut()
             .unwrap()
-            .set_freeze(self.pool.as_mut().unwrap());
+            .no_freeze(self.pool.as_mut().unwrap());
     }
 
     pub fn request_screencopy(&mut self) {
@@ -131,16 +144,18 @@ impl WaylandCtx {
             let intersection_max_x = min(m.global_x + m.width, rect_max_x);
             let intersection_max_y = min(m.global_y + m.height, rect_max_y);
 
-            if intersection_min_x >= intersection_max_x || intersection_min_y >= intersection_max_y
-            {
-                continue;
+            // Ensure that the intersection is valid
+            if intersection_min_x < intersection_max_x && intersection_min_y < intersection_max_y {
+                let relative_min_x = intersection_min_x - m.global_x;
+                let relative_min_y = intersection_min_y - m.global_y;
+                let width = intersection_max_x - intersection_min_x;
+                let height = intersection_max_y - intersection_min_y;
+                m.new_subrect(relative_min_x, relative_min_y, width, height);
+            } else {
+                m.subrect = None;
             }
 
-            let relative_min_x = intersection_min_x - m.global_x;
-            let relative_min_y = intersection_min_y - m.global_y;
-            let width = intersection_max_x - intersection_min_x;
-            let height = intersection_max_y - intersection_min_y;
-            m.new_subrect(relative_min_x, relative_min_y, width, height);
+            debug!("id:{}, subrect:{:?}", _id, m.subrect);
         }
     }
 

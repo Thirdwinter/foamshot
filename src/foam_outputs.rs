@@ -69,6 +69,20 @@ pub struct FoamOutput {
 
 #[allow(unused)]
 impl FoamOutput {
+    pub fn convert_pos_to_surface(
+        src_output: &FoamOutput,
+        target_output: &FoamOutput,
+        surface_x: f64,
+        surface_y: f64,
+    ) -> (f64, f64) {
+        let global_x = src_output.global_x as f64 + surface_x;
+        let global_y = src_output.global_y as f64 + surface_y;
+
+        let dst_x = global_x - target_output.global_x as f64;
+        let dst_y = global_y - target_output.global_y as f64;
+
+        (dst_x, dst_y)
+    }
     pub fn new(id: usize, output: wl_output::WlOutput) -> Self {
         Self {
             id,
@@ -156,6 +170,31 @@ impl FoamOutput {
         surface.damage_buffer(0, 0, w, h);
         surface.commit();
     }
+    pub fn no_freeze(&mut self, pool: &mut SlotPool) {
+        let (w, h) = (self.width, self.height);
+        let surface = self.surface.as_ref().expect("Missing surfaces");
+        // let buffer = self.base_buffer.as_mut().unwrap();
+        //
+        // let canvas = buffer.canvas(pool).unwrap();
+        let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
+        let cairo_surface = unsafe {
+            ImageSurface::create_for_data_unsafe(
+                canvas.as_mut_ptr(),
+                cairo::Format::ARgb32,
+                w,
+                h,
+                w * 4,
+            )
+            .expect("创建 Cairo ImageSurface 失败")
+        };
+        let cr = Context::new(&cairo_surface).expect("创建 Cairo 画布失败");
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.5); // 半透明（50%透明度）的白色
+        cr.paint().unwrap();
+
+        buffer.attach_to(surface).unwrap();
+        surface.damage_buffer(0, 0, w, h);
+        surface.commit();
+    }
 
     pub fn update_select_subrect(&mut self, pool: &mut SlotPool) {
         if !self.has_subrect() {
@@ -165,7 +204,8 @@ impl FoamOutput {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
-        canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
+        // canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
+        canvas.fill(0);
 
         let cairo_surface = unsafe {
             ImageSurface::create_for_data_unsafe(
