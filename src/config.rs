@@ -1,62 +1,104 @@
 use chrono::Local;
 use clap::Parser;
 use directories::UserDirs;
-use log::info;
-use std::path::PathBuf;
-// 引入 chrono 库用于时间处理
+use std::fs;
+use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct CliArgs {
-    /// show cursor when screen freeze, default to false
+    /// 输出文件所在目录路径，默认为 XDG 用户图片路径
+    #[arg(short = 'p', long)]
+    path: Option<PathBuf>,
+
+    /// 输出文件名，支持时间格式化占位符（如 %Y, %m, %d, %H, %M, %S），默认为 foamshot-时间戳
+    #[arg(short = 'n', long, default_value_t = Self::default_name())]
+    name: String,
+
+    /// 截图时是否显示鼠标，默认为 false
     #[arg(long, default_value_t = false)]
     show_cursor: bool,
 
-    /// output path, default to xdg user picture dir, supports format specifiers like %Y, %m, %d, %H, %M, %S
-    #[arg(short, long)]
-    output_path: Option<PathBuf>,
-
-    /// disable quickshot, default to true
-    #[arg(long = "no-quickshot")]
-    no_quickshot: bool,
-
+    /// 截图后是否进入编辑模式，默认为 false
     #[arg(long, default_value_t = false)]
+    edit: bool,
+
+    /// 截图后是否自动复制到剪贴板，默认为 true
+    #[arg(long, default_value_t = true)]
     no_copy: bool,
 
+    /// 截图前是否冻结屏幕，默认为 false
+    #[arg(long, default_value_t = false)]
+    no_freeze: bool,
+
+    /// 是否跳过交互模式自动截全屏，默认为 false
     #[arg(long, default_value_t = false)]
     full_screen: bool,
 }
 
+impl CliArgs {
+    fn default_name() -> String {
+        format!("foamshot-{}.png", Local::now().format("%Y-%m-%d-%H-%M-%S"))
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub enum ImageType {
+    #[default]
+    Png,
+    Jpg,
+}
+
 #[derive(Debug)]
-pub struct Cli {
-    pub no_cursor: bool,
+pub struct FoamConfig {
+    /// 输出路径
     pub output_path: PathBuf,
-    pub quickshot: bool,
+    /// 输出类型，默认为 png
+    pub image_type: ImageType,
+    /// 截图是否显示鼠标
+    pub cursor: bool,
+    /// 截图后是否自动复制到剪贴板
     pub auto_copy: bool,
+
+    /// 截图后是否进入编辑模式
+    //TODO:
+    pub edit: bool,
+    /// 截图前是否冻结屏幕
+    //TODO:
+    pub freeze: bool,
+    /// 是否跳过交互模式自动截全屏
+    //TODO:
     pub full_screen: bool,
 }
 
-impl Default for Cli {
+impl Default for FoamConfig {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Cli {
+impl FoamConfig {
     pub fn new() -> Self {
         let args = CliArgs::parse();
 
-        // 动态生成默认输出路径（如果未提供）
-        let output_path = args
-            .output_path
-            .map(Self::format_path)
-            .unwrap_or_else(Self::generate_default_output_path);
+        // 构造完整的输出路径
+        let formatted_path =
+            Self::format_path(args.path.unwrap_or(Self::generate_default_output_path()));
+        let formatted_name = Self::replace_time_specifiers(&args.name);
+        let (final_path, final_name) = Self::validate_path(&formatted_path, &formatted_name);
+        let mut output_path = final_path;
+        output_path.push(final_name);
 
-        Cli {
-            no_cursor: !args.show_cursor,
+        let mut output_path = output_path;
+        let image_type = Self::detect_image_type(&mut output_path);
+
+        FoamConfig {
             output_path,
-            quickshot: !args.no_quickshot,
+            image_type,
+            cursor: args.show_cursor,
+            edit: args.edit,
             auto_copy: !args.no_copy,
+            freeze: args.no_freeze,
             full_screen: args.full_screen,
         }
     }
@@ -82,17 +124,88 @@ impl Cli {
     }
 
     fn generate_default_output_path() -> PathBuf {
-        let mut path = UserDirs::new()
+        let path = UserDirs::new()
             .and_then(|ud| ud.picture_dir().map(|p| p.to_path_buf()))
             .unwrap_or_else(|| PathBuf::from("."));
 
-        // 生成格式化的时间字符串
-        let now = Local::now();
-        let time_str = now.format("%Y-%m-%d-%H-%M-%S").to_string();
-
-        path.push(format!("foam_shot-{}.png", time_str));
-        info!("output path: {}", path.display());
-
         path
+    }
+
+    fn validate_path(dir_path: &PathBuf, filename: &str) -> (PathBuf, String) {
+        // 验证并创建目录
+        let final_path = if !dir_path.exists() {
+            match fs::create_dir_all(dir_path) {
+                Ok(_) => dir_path.clone(),
+                Err(_) => {
+                    // 如果创建失败，使用默认路径
+                    UserDirs::new()
+                        .and_then(|ud| ud.picture_dir().map(|p| p.to_path_buf()))
+                        .unwrap_or_else(|| PathBuf::from("."))
+                }
+            }
+        } else {
+            dir_path.clone()
+        };
+
+        // 处理文件名
+        let mut final_name = String::from(filename);
+        let mut counter = 0;
+
+        // 获取文件名和扩展名
+        let stem = Path::new(filename)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("foamshot");
+
+        let ext = Path::new(filename)
+            .extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("png");
+
+        // 检查文件是否存在，如果存在则添加递增的数字
+        while final_path.join(&final_name).exists() {
+            counter += 1;
+            final_name = format!("{}-{}.{}", stem, counter, ext);
+        }
+
+        (final_path, final_name)
+    }
+
+    fn detect_image_type(path: &mut PathBuf) -> ImageType {
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            match ext.to_lowercase().as_str() {
+                "jpg" | "jpeg" => ImageType::Jpg,
+                "png" => ImageType::Png,
+                _ => {
+                    // 如果无法识别后缀，将其设置为 .png
+                    if let Some(parent) = path.parent() {
+                        if let Some(file_stem) = path.file_stem() {
+                            let mut new_path = parent.to_path_buf();
+                            new_path.push(format!("{}.png", file_stem.to_string_lossy()));
+                            *path = new_path;
+                        } else {
+                            let mut new_path = parent.to_path_buf();
+                            new_path.push("screenshot.png");
+                            *path = new_path;
+                        }
+                    }
+                    ImageType::Png
+                }
+            }
+        } else {
+            // 如果没有后缀，添加 .png
+            if let Some(parent) = path.parent() {
+                if let Some(file_stem) = path.file_stem() {
+                    let mut new_path = parent.to_path_buf();
+                    new_path.push(format!("{}.png", file_stem.to_string_lossy()));
+                    *path = new_path;
+                } else {
+                    let mut new_path = parent.to_path_buf();
+                    new_path.push("screenshot.png");
+                    *path = new_path;
+                }
+            }
+            ImageType::Png
+        }
     }
 }

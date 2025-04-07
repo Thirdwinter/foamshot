@@ -1,9 +1,10 @@
 use log::*;
-use smithay_client_toolkit::shm::{Shm, slot::SlotPool};
+use smithay_client_toolkit::shm::Shm;
 use wayland_client::{Connection, globals::registry_queue_init};
 
 use crate::{
     action::{self, Action},
+    config::ImageType,
     save_helper, wayland_ctx,
 };
 
@@ -59,7 +60,28 @@ pub fn run_main_loop() {
             }
             Action::Exit => {
                 shot_foam.wayland_ctx.generate_sub_rects();
-                save_helper::save_to_png(&mut shot_foam.wayland_ctx).unwrap();
+                match shot_foam.wayland_ctx.config.image_type {
+                    ImageType::Png => {
+                        if let Err(e) = save_helper::save_to_png(&mut shot_foam.wayland_ctx) {
+                            log::error!("保存PNG图片失败: {}", e);
+                        }
+                        if let Err(e) =
+                            save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx)
+                        {
+                            log::error!("copy faile:{}", e);
+                        }
+                    }
+                    ImageType::Jpg => {
+                        if let Err(e) = save_helper::save_to_jpg(&mut shot_foam.wayland_ctx, 100) {
+                            log::error!("保存JPG图片失败: {}", e);
+                        }
+                        if let Err(e) =
+                            save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx)
+                        {
+                            log::error!("copy faile:{}", e);
+                        }
+                    }
+                }
 
                 std::process::exit(0)
             }

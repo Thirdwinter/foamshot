@@ -1,5 +1,4 @@
 use cairo::{Context, ImageSurface};
-use log::debug;
 use smithay_client_toolkit::shm::slot::{self, Buffer, SlotPool};
 use wayland_client::{
     QueueHandle,
@@ -50,9 +49,6 @@ pub struct FoamOutput {
 
     /// TEST:
     pub pool: Option<slot::SlotPool>,
-
-    pub is_layer_config: bool,
-    pub is_copy_ready: bool,
 }
 
 #[allow(unused)]
@@ -216,8 +212,8 @@ impl FoamOutput {
         let surface = self.surface.as_ref().expect("Missing surfaces");
         let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
-        canvas.fill(0);
-        // canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
+        // canvas.fill(0);
+        canvas.copy_from_slice(self.base_canvas.as_ref().unwrap());
 
         let cairo_surface = unsafe {
             ImageSurface::create_for_data_unsafe(

@@ -488,6 +488,7 @@ impl Dispatch<wl_seat::WlSeat, ()> for FoamShot {
     }
 }
 
+#[allow(unused_variables)]
 impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
     fn event(
         app: &mut Self,

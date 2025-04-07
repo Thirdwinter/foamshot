@@ -21,7 +21,7 @@ use wayland_protocols_wlr::{
     screencopy::v1::client::zwlr_screencopy_manager_v1,
 };
 
-use crate::{foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper};
+use crate::{config, foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper};
 
 #[derive(Default)]
 pub struct WaylandCtx {
@@ -50,6 +50,8 @@ pub struct WaylandCtx {
 
     /// 光标管理器
     pub pointer_helper: PointerHelper,
+
+    pub config: config::FoamConfig,
 }
 
 impl WaylandCtx {
@@ -58,10 +60,11 @@ impl WaylandCtx {
             qh: Some(qh),
             shm: Some(shm),
             foam_outputs: Some(HashMap::new()),
-            // pool: Some(pool),
+            config: config::FoamConfig::new(),
             ..Default::default()
         }
     }
+
     pub fn set_cursor_shape(&mut self, serial: u32, shape: Shape, pointer: &wl_pointer::WlPointer) {
         self.pointer_helper
             .set_cursor_shape(self.qh.as_ref().unwrap(), serial, shape, pointer);
@@ -78,8 +81,8 @@ impl WaylandCtx {
 
     pub fn set_freeze_with_udata(&mut self, udata: usize) {
         let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(&udata);
-        // foam_output.as_mut().unwrap().set_freeze();
-        foam_output.as_mut().unwrap().no_freeze();
+        foam_output.as_mut().unwrap().set_freeze();
+        // foam_output.as_mut().unwrap().no_freeze();
     }
 
     pub fn request_screencopy(&mut self) {
@@ -102,7 +105,7 @@ impl WaylandCtx {
         let foam_outputs = self.foam_outputs.as_mut().unwrap();
         for (index, foam_output) in foam_outputs.iter_mut() {
             let frame = screencopy_manager.capture_output(
-                true as i32,
+                self.config.cursor as i32,
                 foam_output.output.as_ref().unwrap(),
                 qh,
                 *index,
