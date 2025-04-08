@@ -5,33 +5,33 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(version, long_about = None)]
 struct CliArgs {
-    /// 输出文件所在目录路径，默认为 XDG 用户图片路径
+    /// The directory path where the output file is located. The default is the XDG user image path
     #[arg(short = 'p', long)]
     path: Option<PathBuf>,
 
-    /// 输出文件名，支持时间格式化占位符（如 %Y, %m, %d, %H, %M, %S），默认为 foamshot-时间戳
+    /// Output file name, supports time formatting placeholders (such as %Y, %m, %d, %H, %M, %S)
     #[arg(short = 'n', long, default_value_t = Self::default_name())]
     name: String,
 
-    /// 截图时是否显示鼠标，默认为 false
+    /// Whether to display the mouse when taking a screenshot. The default value is false
     #[arg(long, default_value_t = false)]
     show_cursor: bool,
 
-    /// 截图后是否进入编辑模式，默认为 false
+    /// Whether to automatically copy the screenshot to the clipboard, requires wl-copy, default is false
+    #[arg(long, default_value_t = false)]
+    no_copy: bool,
+
+    /// TODO: Whether to enter edit mode after taking a screenshot, the default is false
     #[arg(long, default_value_t = false)]
     edit: bool,
 
-    /// 截图后是否自动复制到剪贴板，默认为 true
-    #[arg(long, default_value_t = true)]
-    no_copy: bool,
-
-    /// 截图前是否冻结屏幕，默认为 false
+    /// TODO: Whether to freeze the screen before taking a screenshot, the default is false
     #[arg(long, default_value_t = false)]
     no_freeze: bool,
 
-    /// 是否跳过交互模式自动截全屏，默认为 false
+    /// TODO: Whether to skip automatic full screen capture in interactive mode, the default value is false
     #[arg(long, default_value_t = false)]
     full_screen: bool,
 }

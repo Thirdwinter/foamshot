@@ -31,7 +31,7 @@ use wayland_protocols_wlr::{
     screencopy::v1::client::zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
 };
 
-use crate::{action::Action, foam_outputs, foamshot::FoamShot};
+use crate::{action::Action, foam_outputs, foamshot::FoamShot, notify};
 
 impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
     fn event(
@@ -206,7 +206,8 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
         match event {
             wl_pointer::Event::Leave { serial, surface } => {
                 app.wayland_ctx
-                    .set_cursor_shape(serial, Shape::Default, proxy);
+                    .set_cursor_shape(serial, Shape::Default, proxy)
+                    .ok();
             }
             wl_pointer::Event::Enter {
                 serial,
@@ -216,16 +217,20 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
             } => {
                 let a: Option<&usize> = surface.data();
                 app.wayland_ctx.unknow_index = a.copied();
-                debug!(
-                    "serial {}: pointer enter surface {}, surface_x:{}, surface_y:{}",
-                    serial,
-                    a.unwrap(),
-                    surface_x,
-                    surface_y
-                );
+                // debug!(
+                //     "serial {}: pointer enter surface {}, surface_x:{}, surface_y:{}",
+                //     serial,
+                //     a.unwrap(),
+                //     surface_x,
+                //     surface_y
+                // );
 
-                app.wayland_ctx
-                    .set_cursor_shape(serial, Shape::Crosshair, proxy);
+                if let Err(e) = app
+                    .wayland_ctx
+                    .set_cursor_shape(serial, Shape::Crosshair, proxy)
+                {
+                    notify::send(notify::NotificationLevel::Warn, "can not set cursor shape")
+                }
 
                 let foam_output = app
                     .wayland_ctx

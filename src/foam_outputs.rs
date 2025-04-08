@@ -100,7 +100,7 @@ impl FoamOutput {
             layer_shell,
             surface,
             Some(output),
-            Layer::Overlay,
+            Layer::Top,
             "foam_freeze".to_string(),
             qh,
             id,

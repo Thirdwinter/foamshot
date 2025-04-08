@@ -65,9 +65,15 @@ impl WaylandCtx {
         }
     }
 
-    pub fn set_cursor_shape(&mut self, serial: u32, shape: Shape, pointer: &wl_pointer::WlPointer) {
+    pub fn set_cursor_shape(
+        &mut self,
+        serial: u32,
+        shape: Shape,
+        pointer: &wl_pointer::WlPointer,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.pointer_helper
-            .set_cursor_shape(self.qh.as_ref().unwrap(), serial, shape, pointer);
+            .set_cursor_shape(self.qh.as_ref().unwrap(), serial, shape, pointer)?;
+        Ok(())
     }
 
     pub fn init_base_layers(&mut self) {

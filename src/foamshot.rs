@@ -1,11 +1,11 @@
-use log::*;
+use log::debug;
 use smithay_client_toolkit::shm::Shm;
 use wayland_client::{Connection, globals::registry_queue_init};
 
 use crate::{
     action::{self, Action},
     config::ImageType,
-    save_helper, wayland_ctx,
+    notify, save_helper, wayland_ctx,
 };
 
 pub struct FoamShot {
@@ -27,6 +27,7 @@ pub fn run_main_loop() {
     let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
     // let pool = SlotPool::new(256 * 256 * 4, &shm).expect("Failed to create pool");
     let mut shot_foam = FoamShot::new(shm, qh);
+    debug!("{:?}", shot_foam.wayland_ctx.config);
 
     event_queue.roundtrip(&mut shot_foam).expect("init failed");
 
@@ -63,23 +64,17 @@ pub fn run_main_loop() {
                 match shot_foam.wayland_ctx.config.image_type {
                     ImageType::Png => {
                         if let Err(e) = save_helper::save_to_png(&mut shot_foam.wayland_ctx) {
-                            log::error!("保存PNG图片失败: {}", e);
+                            notify::send(notify::NotificationLevel::Error, "save to png error");
+                            log::error!("save to png error: {}", e);
                         }
-                        if let Err(e) =
-                            save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx)
-                        {
-                            log::error!("copy faile:{}", e);
-                        }
+                        save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx).unwrap();
                     }
                     ImageType::Jpg => {
                         if let Err(e) = save_helper::save_to_jpg(&mut shot_foam.wayland_ctx, 100) {
-                            log::error!("保存JPG图片失败: {}", e);
+                            notify::send(notify::NotificationLevel::Error, "save to jpg error");
+                            log::error!("save to jpg error: {}", e);
                         }
-                        if let Err(e) =
-                            save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx)
-                        {
-                            log::error!("copy faile:{}", e);
-                        }
+                        save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx).ok();
                     }
                 }
 
@@ -101,10 +96,11 @@ impl FoamShot {
     pub fn check_ok(&self) {
         // check screencopy manager exists
         if let None = self.wayland_ctx.screencopy_manager {
-            error!("screencopy manager not available");
+            notify::send(
+                notify::NotificationLevel::Error,
+                "this compositor unsupported zwl screencopy, foamshot will be exit",
+            );
             std::process::exit(1);
-        } else {
-            info!("screencopy manager available");
         }
     }
 }

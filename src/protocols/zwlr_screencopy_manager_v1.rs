@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
-use log::{debug, error, trace, warn};
+use log::{debug, trace, warn};
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
 };
 
 use crate::action::Action;
-use crate::foam_outputs;
 use crate::foamshot::FoamShot;
 
 impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamShot {

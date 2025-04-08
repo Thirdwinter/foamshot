@@ -1,3 +1,4 @@
+use crate::notify;
 use crate::wayland_ctx::WaylandCtx;
 use log::warn;
 use std::io::Write;
@@ -22,7 +23,7 @@ pub fn save_to_png(wl_ctx: &mut WaylandCtx) -> Result<(), Box<dyn std::error::Er
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(output_path)
+        .open(output_path.clone())
         .map_err(|e| format!("创建文件失败: {}", e))?;
 
     final_surface
@@ -30,6 +31,10 @@ pub fn save_to_png(wl_ctx: &mut WaylandCtx) -> Result<(), Box<dyn std::error::Er
         .map_err(|e| format!("写入PNG失败: {}", e))?;
 
     file.flush().map_err(|e| format!("刷新文件失败: {}", e))?;
+    notify::send(
+        notify::NotificationLevel::Info,
+        format!("Image saved in {}", output_path.clone().display()),
+    );
 
     Ok(())
 }

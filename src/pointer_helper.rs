@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use wayland_client::QueueHandle;
 use wayland_client::protocol::wl_pointer;
 use wayland_protocols::wp::cursor_shape::v1::client::{
@@ -32,13 +34,16 @@ impl PointerHelper {
         &mut self,
         qh: &QueueHandle<FoamShot>,
         pointer: &wl_pointer::WlPointer,
-    ) {
+    ) -> Result<(), Box<dyn Error>> {
         if self.cursor_shape_device.is_none() {
-            let manager = &self.cursor_shape_manager.as_ref().unwrap().0;
-            // let pointer = self.pointer.as_ref().unwrap();
-            let device = manager.get_pointer(pointer, qh, ());
+            let manager = self
+                .cursor_shape_manager
+                .as_ref()
+                .ok_or("Cursor shape manager is not initialized")?;
+            let device = manager.0.get_pointer(pointer, qh, ());
             self.cursor_shape_device = Some(device);
         }
+        Ok(())
     }
 
     /// 链式设置光标形状
@@ -49,9 +54,9 @@ impl PointerHelper {
         serial: u32,
         shape: wp_cursor_shape_device_v1::Shape,
         pointer: &wl_pointer::WlPointer,
-    ) -> &mut Self {
+    ) -> Result<(), Box<dyn Error>> {
         // 确保设备已初始化
-        self.ensure_cursor_device(qh, pointer);
+        self.ensure_cursor_device(qh, pointer)?;
 
         // 安全unwrap，因为ensure_cursor_device保证设备存在
         self.cursor_shape_device
@@ -59,7 +64,6 @@ impl PointerHelper {
             .unwrap()
             .set_shape(serial, shape);
 
-        // 返回self支持链式调用
-        self
+        Ok(())
     }
 }

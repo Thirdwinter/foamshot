@@ -1,3 +1,4 @@
+use crate::notify;
 use crate::wayland_ctx::WaylandCtx;
 use image::{ImageBuffer, Rgb};
 use log::warn;
@@ -46,7 +47,7 @@ pub fn save_to_jpg(wl_ctx: &mut WaylandCtx, quality: u8) -> Result<(), Box<dyn s
     let mut output_file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(output_path)
+        .open(output_path.clone())
         .map_err(|e| format!("创建文件失败: {}", e))?;
 
     // 将ImageBuffer编码为JPEG并写入文件
@@ -69,6 +70,10 @@ pub fn save_to_jpg(wl_ctx: &mut WaylandCtx, quality: u8) -> Result<(), Box<dyn s
     output_file
         .flush()
         .map_err(|e| format!("刷新文件失败: {}", e))?;
+    notify::send(
+        notify::NotificationLevel::Info,
+        format!("Image saved in {}", output_path.clone().display()),
+    );
 
     Ok(())
 }
