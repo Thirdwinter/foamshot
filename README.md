@@ -39,12 +39,12 @@ Options:
 ```
 * When the screen is waiting for the mouse to be pressed, press the `a` key to quickly capture the full screen, press the `f` key to toggle freeze state.
 * Edit mode is under development.
-* in hyprland,you can  `bind = $mainMod, A, exec, foamshot -p $HOME/Pictures/Screenshots/ -n foam_shot-%Y-%m-%d_%H-%M-%S.png
+* in hyprland,you can  `bind = $mainMod, A, exec, foamshot -p $HOME/Pictures/Screenshots/ -n foam_shot-%Y-%m-%d_%H-%M-%S.png`
 
 ---
 ## Roadmap
 - [x] **Multi-monitor coordinated capture**
-- [-] **Cross-compositor compatibility layer**
+- [ ] **Cross-compositor compatibility layer**
 - [x] **CLI parameters**
 - [ ] **Quick-edit mode**
 - [ ] **pin**
