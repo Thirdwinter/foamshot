@@ -94,11 +94,8 @@ impl Dispatch<xdg_wm_base::XdgWmBase, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        match event {
-            xdg_wm_base::Event::Ping { serial } => {
-                proxy.pong(serial);
-            }
-            _ => (),
+        if let xdg_wm_base::Event::Ping { serial } = event {
+            proxy.pong(serial);
         }
     }
 }
@@ -113,11 +110,8 @@ impl Dispatch<xdg_surface::XdgSurface, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        match event {
-            xdg_surface::Event::Configure { serial } => {
-                proxy.ack_configure(serial);
-            }
-            _ => (),
+        if let xdg_surface::Event::Configure { serial } = event {
+            proxy.ack_configure(serial);
         }
     }
 }

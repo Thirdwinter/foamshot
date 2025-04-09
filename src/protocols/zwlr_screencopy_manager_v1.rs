@@ -1,4 +1,4 @@
-use log::{debug, trace, warn};
+use log::*;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
@@ -49,7 +49,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                 // current.base_buffer = Some(buffer);
                 app.wayland_ctx.scm.insert_buffer(*data, buffer).ok();
             }
-            zwlr_screencopy_frame_v1::Event::BufferDone { .. } => {
+            zwlr_screencopy_frame_v1::Event::BufferDone => {
                 trace!("bufferdone => data:{}, copy frame to buffer", data);
                 // let mut foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
                 // let buffer = foam_output

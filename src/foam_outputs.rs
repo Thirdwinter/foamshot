@@ -5,15 +5,12 @@ use wayland_client::{
     QueueHandle,
     protocol::{wl_output, wl_shm::Format, wl_surface},
 };
-use wayland_protocols_wlr::{
-    layer_shell::v1::client::{
-        zwlr_layer_shell_v1::{self, Layer},
-        zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
-    },
-    screencopy::v1::client::zwlr_screencopy_frame_v1,
+use wayland_protocols_wlr::layer_shell::v1::client::{
+    zwlr_layer_shell_v1::{self, Layer},
+    zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
 };
 
-use crate::foamshot::FoamShot;
+use crate::{cairo_render::draw_base, foamshot::FoamShot};
 
 /// NOTE: 为物理显示器做的抽象，包含其基础信息
 #[derive(Default)]
@@ -38,7 +35,7 @@ pub struct FoamOutput {
     pub scale: i32,
 
     /// 用于screencopy
-    pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
+    // pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
     pub base_buffer: Option<Buffer>,
     pub current_canvas: Option<Vec<u8>>,
     // add freeze layer surfae to impl set_freeze
@@ -123,27 +120,15 @@ impl FoamOutput {
         self.current_canvas = Some(canvas.to_vec())
     }
 
-    pub fn freeze_attach(&mut self, base_canvas: &Vec<u8>) {
+    pub fn freeze_attach(&mut self, base_canvas: &[u8]) {
         debug!("fn: freeze_attach");
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
         let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
-        // canvas.fill(0);
         canvas.copy_from_slice(base_canvas);
-        let cairo_surface = unsafe {
-            ImageSurface::create_for_data_unsafe(
-                canvas.as_mut_ptr(),
-                cairo::Format::ARgb32,
-                w,
-                h,
-                w * 4,
-            )
-            .expect("创建 Cairo ImageSurface 失败")
-        };
-        let cr = Context::new(&cairo_surface).expect("创建 Cairo 画布失败");
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.3); // 半透明（50%透明度）的白色
-        cr.paint().unwrap();
+
+        draw_base(canvas, w, h);
 
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
@@ -151,7 +136,7 @@ impl FoamOutput {
         self.base_buffer = Some(buffer)
     }
 
-    pub fn update_select_subrect(&mut self, base_canvas: &Vec<u8>, freeze: bool) {
+    pub fn update_select_subrect(&mut self, base_canvas: &[u8], freeze: bool) {
         // NOTE: 绘制之前刷新缓存
         self.old_subrect = self.subrect.clone();
 
@@ -186,7 +171,7 @@ impl FoamOutput {
         let surface_height = cairo_surface.height() as f64;
 
         // 设置半透明白色
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.3);
+        cr.set_source_rgba(0.8, 0.8, 0.8, 0.3);
         cr.rectangle(0.0, 0.0, surface_width, surface_height);
 
         let (x, y, rw, rh) = (
@@ -232,19 +217,7 @@ impl FoamOutput {
         let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         canvas.fill(0);
-        let cairo_surface = unsafe {
-            ImageSurface::create_for_data_unsafe(
-                canvas.as_mut_ptr(),
-                cairo::Format::ARgb32,
-                w,
-                h,
-                w * 4,
-            )
-            .expect("创建 Cairo ImageSurface 失败")
-        };
-        let cr = Context::new(&cairo_surface).expect("创建 Cairo 画布失败");
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.2); // 半透明（50%透明度）的白色
-        cr.paint().unwrap();
+        draw_base(canvas, w, h);
 
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
@@ -256,25 +229,18 @@ impl FoamOutput {
     pub fn is_subrect_changed(&self) -> bool {
         match self.old_subrect.as_ref() {
             // 当old存在时，检查new是否存在以及值是否相同
-            Some(old) => self.subrect.as_ref().map_or(true, |new| old != new),
+            Some(old) => self.subrect.as_ref() != Some(old),
             // old不存在时必然发生变化
             None => true,
         }
     }
     #[inline(always)]
     pub fn has_subrect(&self) -> bool {
-        match self.subrect {
-            None => false,
-            Some(_) => true,
-        }
+        self.subrect.is_some()
     }
 
     pub fn is_dirty(&mut self) -> bool {
-        if self.has_subrect() && self.is_subrect_changed() {
-            true
-        } else {
-            false
-        }
+        self.has_subrect() && self.is_subrect_changed()
     }
     pub fn send_next_frame(&mut self, qh: &QueueHandle<FoamShot>, udata: usize) {
         let surface = self.surface.as_mut().unwrap();

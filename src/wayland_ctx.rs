@@ -49,7 +49,6 @@ pub struct WaylandCtx {
 
     /// 每个输出设备一个
     pub foam_outputs: Option<HashMap<usize, foam_outputs::FoamOutput>>,
-    pub frames_ready: usize,
     pub layer_ready: usize,
 
     /// 光标管理器
@@ -140,7 +139,7 @@ impl WaylandCtx {
             //     *index,
             // );
             // foam_output.screencopy_frame = Some(frame);
-            let _ = self.scm.request_copy_one(
+            self.scm.request_copy_one(
                 self.config.cursor,
                 foam_output.output.as_ref().unwrap(),
                 qh,
@@ -167,7 +166,7 @@ impl WaylandCtx {
         let rect_max_x = max(start_gx, end_gx);
         let rect_max_y = max(start_gy, end_gy);
 
-        for (_id, m) in foam_outputs {
+        for m in foam_outputs.values_mut() {
             let intersection_min_x = max(m.global_x, rect_min_x);
             let intersection_min_y = max(m.global_y, rect_min_y);
             let intersection_max_x = min(m.global_x + m.width, rect_max_x);

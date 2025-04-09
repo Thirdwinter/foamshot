@@ -50,6 +50,7 @@ pub enum ImageType {
 }
 
 #[derive(Debug)]
+#[allow(unused)]
 pub struct FoamConfig {
     /// 输出路径
     pub output_path: PathBuf,
@@ -89,7 +90,6 @@ impl FoamConfig {
         let mut output_path = final_path;
         output_path.push(final_name);
 
-        let mut output_path = output_path;
         let image_type = Self::detect_image_type(&mut output_path);
 
         FoamConfig {

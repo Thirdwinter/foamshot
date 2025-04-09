@@ -43,20 +43,22 @@ pub fn run_main_loop() {
         match &shot_foam.mode {
             Action::Init => {}
             Action::WaitPointerPress => {}
-            Action::ToggleFreeze(state) => match state {
-                IsFreeze::Freeze => {
-                    debug!("next is freeze");
-                    shot_foam.wait_freeze(&mut event_queue);
-                    // shot_foam.wayland_ctx.attach_all();
-                    shot_foam.wayland_ctx.toggle_freeze_reattach();
-                }
-                IsFreeze::UnFreeze => {
-                    debug!("next is unfreeze");
+            Action::ToggleFreeze(state) => {
+                match state {
+                    IsFreeze::Freeze => {
+                        debug!("next is freeze");
+                        shot_foam.wait_freeze(&mut event_queue);
+                        // shot_foam.wayland_ctx.attach_all();
+                        shot_foam.wayland_ctx.toggle_freeze_reattach();
+                    }
+                    IsFreeze::UnFreeze => {
+                        debug!("next is unfreeze");
 
-                    // shot_foam.wayland_ctx.attach_all();
-                    shot_foam.wayland_ctx.toggle_freeze_reattach();
+                        // shot_foam.wayland_ctx.attach_all();
+                        shot_foam.wayland_ctx.toggle_freeze_reattach();
+                    }
                 }
-            },
+            }
             Action::OnDraw => {
                 shot_foam.wayland_ctx.update_select_region();
             }
@@ -128,7 +130,7 @@ impl FoamShot {
     /// if current compositor unsupported zwl screencopy, foamshot will be exit
     pub fn check_ok(&self) {
         // check screencopy manager exists
-        if let None = self.wayland_ctx.screencopy_manager {
+        if self.wayland_ctx.screencopy_manager.is_none() {
             notify::send(
                 notify::NotificationLevel::Error,
                 "this compositor unsupported zwl screencopy, foamshot will be exit",

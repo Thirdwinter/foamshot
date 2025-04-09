@@ -1,6 +1,5 @@
 use crate::foam_outputs::FoamOutput;
 use crate::wayland_ctx::WaylandCtx;
-use cairo;
 use std::error::Error;
 
 // 捕获区域信息结构体
@@ -104,7 +103,7 @@ pub(crate) fn process_all_outputs(
 /// 处理单个显示器输出
 pub(crate) fn process_single_output(
     output: &mut FoamOutput,
-    base_canvas: &mut Vec<u8>,
+    base_canvas: &mut [u8],
     capture_info: &CaptureInfo,
     final_surface: &cairo::ImageSurface,
 ) -> Result<(), Box<dyn Error>> {

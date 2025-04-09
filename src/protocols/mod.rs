@@ -4,7 +4,6 @@ mod xdg;
 mod zwlr_layer_shell_v1;
 mod zwlr_screencopy_manager_v1;
 
-use image::codecs::png::ApngDecoder;
 use log::*;
 use smithay_client_toolkit::{
     delegate_shm,
@@ -57,107 +56,93 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
             } => {
                 trace!("Registry global: {} {} {}", name, interface, version);
 
-                // 使用更清晰的模式匹配结构
-                match interface.as_str() {
-                    interface_name => match interface_name {
-                        // Compositor 绑定
-                        _ if interface_name == wl_compositor::WlCompositor::interface().name => {
-                            if app.wayland_ctx.compositor.is_none() {
-                                let compositor = proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.compositor = Some((compositor, name));
-                            }
+                let interface_name = interface.as_str();
+                match interface_name {
+                    // Compositor 绑定
+                    _ if interface_name == wl_compositor::WlCompositor::interface().name => {
+                        if app.wayland_ctx.compositor.is_none() {
+                            let compositor = proxy.bind(name, version, qh, ());
+                            app.wayland_ctx.compositor = Some((compositor, name));
                         }
-
-                        // Seat 绑定及相关资源获取
-                        _ if interface_name == wl_seat::WlSeat::interface().name => {
-                            if app.wayland_ctx.seat.is_none() {
-                                let seat: wl_seat::WlSeat = proxy.bind(name, version, qh, ());
-                                let pointer = seat.get_pointer(qh, ());
-                                let keyboard = seat.get_keyboard(qh, ());
-                                app.wayland_ctx.pointer_helper.pointer = Some(pointer);
-                                app.wayland_ctx.keyboard = Some(keyboard);
-                                app.wayland_ctx.seat = Some((seat, name));
-                            }
+                    }
+                    // Seat 绑定及相关资源获取
+                    _ if interface_name == wl_seat::WlSeat::interface().name => {
+                        if app.wayland_ctx.seat.is_none() {
+                            let seat: wl_seat::WlSeat = proxy.bind(name, version, qh, ());
+                            let pointer = seat.get_pointer(qh, ());
+                            let keyboard = seat.get_keyboard(qh, ());
+                            app.wayland_ctx.pointer_helper.pointer = Some(pointer);
+                            app.wayland_ctx.keyboard = Some(keyboard);
+                            app.wayland_ctx.seat = Some((seat, name));
                         }
-
-                        // 动态管理 outputs
-                        _ if interface_name == wl_output::WlOutput::interface().name => {
-                            let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
-                            let index = outputs.len();
-                            let shm = app.wayland_ctx.shm.as_mut().unwrap();
-                            let pool =
-                                SlotPool::new(256 * 256 * 4, shm).expect("Failed to create pool");
-                            let foam_output = foam_outputs::FoamOutput::new(
-                                index,
-                                proxy.bind(name, version, qh, index),
-                                pool,
-                            );
-                            outputs.insert(index, foam_output);
+                    }
+                    // 动态管理 outputs
+                    _ if interface_name == wl_output::WlOutput::interface().name => {
+                        let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
+                        let index = outputs.len();
+                        let shm = app.wayland_ctx.shm.as_mut().unwrap();
+                        let pool =
+                            SlotPool::new(256 * 256 * 4, shm).expect("Failed to create pool");
+                        let foam_output = foam_outputs::FoamOutput::new(
+                            index,
+                            proxy.bind(name, version, qh, index),
+                            pool,
+                        );
+                        outputs.insert(index, foam_output);
+                    }
+                    // Layer shell 绑定
+                    _ if interface_name == ZwlrLayerShellV1::interface().name => {
+                        if app.wayland_ctx.layer_shell.is_none() {
+                            let layer_shell = proxy.bind(name, version, qh, ());
+                            app.wayland_ctx.layer_shell = Some((layer_shell, name));
                         }
-
-                        // Layer shell 绑定
-                        _ if interface_name == ZwlrLayerShellV1::interface().name => {
-                            if app.wayland_ctx.layer_shell.is_none() {
-                                let layer_shell = proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.layer_shell = Some((layer_shell, name));
-                            }
+                    }
+                    // Screencopy manager 绑定
+                    _ if interface_name == ZwlrScreencopyManagerV1::interface().name => {
+                        if app.wayland_ctx.screencopy_manager.is_none() {
+                            let manager: ZwlrScreencopyManagerV1 =
+                                proxy.bind(name, version, qh, ());
+                            app.wayland_ctx.screencopy_manager = Some((manager.clone(), name));
+                            app.wayland_ctx.scm = ZwlrScreencopyMode::new((manager.clone(), name));
                         }
-
-                        // Screencopy manager 绑定
-                        _ if interface_name == ZwlrScreencopyManagerV1::interface().name => {
-                            if app.wayland_ctx.screencopy_manager.is_none() {
-                                let manager: ZwlrScreencopyManagerV1 =
-                                    proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.screencopy_manager = Some((manager.clone(), name));
-                                app.wayland_ctx.scm =
-                                    ZwlrScreencopyMode::new((manager.clone(), name))
-                            }
-                        }
-
-                        // Cursor shape 相关绑定
-                        _ if interface_name == WpCursorShapeManagerV1::interface().name => {
-                            if app
-                                .wayland_ctx
-                                .pointer_helper
-                                .cursor_shape_manager
-                                .is_none()
-                            {
-                                let manager: WpCursorShapeManagerV1 =
-                                    proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.pointer_helper.cursor_shape_manager =
-                                    Some((manager, name));
-                                // FIX: this time meybe can not get wl_pointer
-                                // let pointer =
-                                //     app.wayland_ctx.pointer_helper.pointer.as_ref().unwrap();
-                                // let device = manager.get_pointer(pointer, qh, ());
-                                // app.wayland_ctx.pointer_helper.cursor_shape_device = Some(device);
-                            }
-                        }
-                        // NOTE: xdg_output_manager 处理 多输出
-                        _ if interface_name
-                            == zxdg_output_manager_v1::ZxdgOutputManagerV1::interface().name =>
+                    }
+                    // Cursor shape 相关绑定
+                    _ if interface_name == WpCursorShapeManagerV1::interface().name => {
+                        if app
+                            .wayland_ctx
+                            .pointer_helper
+                            .cursor_shape_manager
+                            .is_none()
                         {
-                            if app.wayland_ctx.xdg_output_manager.is_none() {
-                                let manager = proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.xdg_output_manager = Some((manager, name));
-                            }
+                            let manager: WpCursorShapeManagerV1 = proxy.bind(name, version, qh, ());
+                            app.wayland_ctx.pointer_helper.cursor_shape_manager =
+                                Some((manager, name));
                         }
-                        // xdgwmbase
-                        _ if interface_name == xdg_wm_base::XdgWmBase::interface().name => {
-                            if app.wayland_ctx.xdgwmbase.is_none() {
-                                let base = proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.xdgwmbase = Some((base, name));
-                            }
+                    }
+                    // NOTE: xdg_output_manager 处理多输出
+                    _ if interface_name
+                        == zxdg_output_manager_v1::ZxdgOutputManagerV1::interface().name =>
+                    {
+                        if app.wayland_ctx.xdg_output_manager.is_none() {
+                            let manager = proxy.bind(name, version, qh, ());
+                            app.wayland_ctx.xdg_output_manager = Some((manager, name));
                         }
-                        _ if interface_name == WpViewporter::interface().name => {
-                            if app.wayland_ctx.viewporter.is_none() {
-                                let viewporter = proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.viewporter = Some((viewporter, name));
-                            }
+                    }
+                    // xdgwmbase
+                    _ if interface_name == xdg_wm_base::XdgWmBase::interface().name => {
+                        if app.wayland_ctx.xdgwmbase.is_none() {
+                            let base = proxy.bind(name, version, qh, ());
+                            app.wayland_ctx.xdgwmbase = Some((base, name));
                         }
-
-                        _ => (),
-                    },
+                    }
+                    // Viewporter
+                    _ if interface_name == WpViewporter::interface().name => {
+                        if app.wayland_ctx.viewporter.is_none() {
+                            let viewporter = proxy.bind(name, version, qh, ());
+                            app.wayland_ctx.viewporter = Some((viewporter, name));
+                        }
+                    }
+                    _ => (),
                 }
             }
             wl_registry::Event::GlobalRemove { name } => {
@@ -227,13 +212,6 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
             } => {
                 let a: Option<&usize> = surface.data();
                 app.wayland_ctx.unknow_index = a.copied();
-                // debug!(
-                //     "serial {}: pointer enter surface {}, surface_x:{}, surface_y:{}",
-                //     serial,
-                //     a.unwrap(),
-                //     surface_x,
-                //     surface_y
-                // );
 
                 if let Err(e) = app
                     .wayland_ctx
@@ -263,11 +241,11 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 {
                     debug!("surface enter output:{} x:{}, y:{}", foam_output.name, x, y);
 
-                    app.wayland_ctx.current_index = Some(a.unwrap().clone());
+                    app.wayland_ctx.current_index = Some(*a.unwrap());
                     match app.wayland_ctx.pointer_helper.start_index {
                         Some(_) => (),
                         None => {
-                            app.wayland_ctx.pointer_helper.start_index = Some(a.unwrap().clone());
+                            app.wayland_ctx.pointer_helper.start_index = Some(*a.unwrap());
                         }
                     }
                     match app.wayland_ctx.pointer_helper.current_pos {
@@ -284,7 +262,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 button,
                 state,
             } => {
-                if let Some(state) = state.into_result().ok() {
+                if let Ok(state) = state.into_result() {
                     match state {
                         wl_pointer::ButtonState::Pressed => {
                             app.wayland_ctx.pointer_helper.is_pressing = true;
@@ -293,7 +271,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                                 app.wayland_ctx.current_index;
 
                             app.wayland_ctx.pointer_helper.start_pos =
-                                app.wayland_ctx.pointer_helper.current_pos.clone();
+                                app.wayland_ctx.pointer_helper.current_pos;
 
                             app.wayland_ctx.generate_sub_rects();
 
@@ -305,7 +283,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                                 app.wayland_ctx.current_index;
 
                             app.wayland_ctx.pointer_helper.end_pos =
-                                app.wayland_ctx.pointer_helper.current_pos.clone();
+                                app.wayland_ctx.pointer_helper.current_pos;
 
                             app.mode = Action::Exit;
                         }
@@ -344,12 +322,9 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 );
 
                 app.wayland_ctx.pointer_helper.current_pos = Some((x, y));
-                match app.mode {
-                    Action::OnDraw => {
-                        // TODO:
-                        app.wayland_ctx.generate_sub_rects();
-                    }
-                    _ => (),
+                if app.mode == Action::OnDraw {
+                    // TODO:
+                    app.wayland_ctx.generate_sub_rects();
                 }
             }
             _ => (),
@@ -367,28 +342,34 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
+        // 定义常量代替魔法数字
+        const KEY_F: u32 = 33;
+        const KEY_ESC: u32 = 1;
+
+        // 使用模式匹配替代多重if嵌套
         if let wl_keyboard::Event::Key {
-            serial: _,
-            time: _,
             key,
-            state: key_state,
+            state: wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed),
+            ..
         } = event
         {
-            if let wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) = key_state {
-                debug!("{}", key);
-                if key == 33 {
-                    // TODO: pressed `f` to toggle freeze
-                    if app.wayland_ctx.current_freeze {
-                        app.mode = Action::ToggleFreeze(IsFreeze::UnFreeze);
-                        app.wayland_ctx.current_freeze = false;
+            debug!("Key pressed: {}", key);
+
+            match key {
+                KEY_F => {
+                    // 使用更简洁的状态切换方式
+                    app.wayland_ctx.current_freeze = !app.wayland_ctx.current_freeze;
+                    app.mode = if app.wayland_ctx.current_freeze {
+                        Action::ToggleFreeze(IsFreeze::Freeze)
                     } else {
-                        app.mode = Action::ToggleFreeze(IsFreeze::Freeze);
-                        app.wayland_ctx.current_freeze = true;
-                    }
+                        Action::ToggleFreeze(IsFreeze::UnFreeze)
+                    };
                 }
-                if key == 1 {
+                KEY_ESC => {
+                    // 使用更明确的退出方式
                     std::process::exit(0);
                 }
+                _ => {}
             }
         }
     }
@@ -437,7 +418,7 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                     return;
                 };
                 // create an xdg_output object for this wl_output
-                let _ = xdg_output_manager.get_xdg_output(proxy, &qh, *data);
+                let _ = xdg_output_manager.get_xdg_output(proxy, qh, *data);
 
                 let Some((compositor, _)) = &app.wayland_ctx.compositor else {
                     error!("No Compositor");
@@ -452,7 +433,7 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                     .unwrap()
                     .get_mut(data)
                     .unwrap();
-                foam_output.surface = Some(compositor.create_surface(&qh, *data));
+                foam_output.surface = Some(compositor.create_surface(qh, *data));
             }
             _ => {}
         };
@@ -538,7 +519,7 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
                         .base_canvas
                         .as_mut()
                         .unwrap()
-                        .get_mut(&data)
+                        .get_mut(data)
                         .unwrap();
                     outputs
                         .get_mut(data)

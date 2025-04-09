@@ -1,4 +1,5 @@
 mod action;
+mod cairo_render;
 mod config;
 mod foam_outputs;
 mod foamshot;
