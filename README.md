@@ -8,12 +8,15 @@ A lightweight screenshot utility based on the Wayland screen capture protocol (`
 
 ## Features
 
-- 🔍 **Area Selection Capture**: Interactive screen region selection with PNG output
+- 🔍 **Area Selection Capture**: Interactive screen region selection with PNG/JPEG output
+- 🔍 **toggle screen freeze**: Press key `f` before clicking the mouse to toggle screen freeze
+- 🔍 **compositor**: foamshot can working in `hyprland`, `niri`, `wayfire(TODO: can not change cursor shape)`
 
 ---
 
 ## Installation
 `arch aur`: paru -S foamshot-bin
+or build by cargo.
 
 ---
 
@@ -23,31 +26,25 @@ A lightweight screenshot utility based on the Wayland screen capture protocol (`
 Usage: foamshot [OPTIONS]
 
 Options:
-      --show-cursor                show cursor when screen freeze, default to false
-  -o, --output-path <OUTPUT_PATH>  output path, default to xdg user picture dir, supports format specifiers like %Y, %m, %d, %H, %M, %S
-      --no-quickshot               disable quickshot, default to true
-      --no-copy                    
-      --full-screen                
-  -h, --help                       Print help
-  -V, --version                    Print version
+  -p, --path <PATH>  The directory path where the output file is located. The default is the XDG user image path
+  -n, --name <NAME>  Output file name, supports time formatting placeholders (such as %Y, %m, %d, %H, %M, %S) [default: foamshot-2025
+-04-09-21-11-23.png]
+      --show-cursor  Whether to display the mouse when taking a screenshot. The default value is false
+      --no-copy      Whether to automatically copy the screenshot to the clipboard, requires wl-copy, default is false
+      --no-freeze    Whether to freeze the screen before taking a screenshot, the default is false
+      --full-screen  Whether to skip automatic full screen capture in interactive mode, the default value is false
+      --edit         TODO: Whether to enter edit mode after taking a screenshot, the default is false
+  -h, --help         Print help
+  -V, --version      Print version
 ```
-* When in quick mode, output and exit directly after selection is completed.
-* When the screen is frozen and waiting for the mouse to be pressed, press the `a` key to quickly capture the full screen.
+* When the screen is waiting for the mouse to be pressed, press the `a` key to quickly capture the full screen, press the `f` key to toggle freeze state.
 * Edit mode is under development.
-* in hyprland,like `bind = $mainMod, A, exec, foamshot -o /home/username/Pictures/Screenshots/foam_shot-%Y-%m-%d_%H-%M-%S.png
-`
+* in hyprland,you can  `bind = $mainMod, A, exec, foamshot -p $HOME/Pictures/Screenshots/ -n foam_shot-%Y-%m-%d_%H-%M-%S.png
 
----
-
-## Known issues
-
-1. If you enter freeze mode and click directly without moving the mouse, you cannot take a screenshot(In subsequent development, a new method for obtaining mouse coordinates will be used).
-
----
 ---
 ## Roadmap
-- [ ] **Multi-monitor coordinated capture**
-- [ ] **Cross-compositor compatibility layer**
+- [x] **Multi-monitor coordinated capture**
+- [-] **Cross-compositor compatibility layer**
 - [x] **CLI parameters**
 - [ ] **Quick-edit mode**
-- [ ] **Multi-modal operations**
+- [ ] **pin**
