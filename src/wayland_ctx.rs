@@ -70,6 +70,15 @@ impl WaylandCtx {
             ..Default::default()
         }
     }
+    pub fn set_one_max(&mut self, traget: usize) {
+        for (i, v) in self.foam_outputs.as_mut().unwrap() {
+            if *i == traget {
+                v.max_rect();
+            } else {
+                v.clean_rect();
+            }
+        }
+    }
 
     pub fn set_cursor_shape(
         &mut self,
@@ -132,13 +141,6 @@ impl WaylandCtx {
         // 遍历所有 outputs
         let foam_outputs = self.foam_outputs.as_mut().unwrap();
         for (index, foam_output) in foam_outputs.iter_mut() {
-            // let frame = screencopy_manager.capture_output(
-            //     self.config.cursor as i32,
-            //     foam_output.output.as_ref().unwrap(),
-            //     qh,
-            //     *index,
-            // );
-            // foam_output.screencopy_frame = Some(frame);
             self.scm.request_copy_one(
                 self.config.cursor,
                 foam_output.output.as_ref().unwrap(),
@@ -187,6 +189,7 @@ impl WaylandCtx {
         }
     }
 
+    #[allow(unused)]
     pub fn toggle_freeze_reattach(&mut self) {
         for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
             v.send_next_frame(self.qh.as_ref().unwrap(), *i);
@@ -208,11 +211,11 @@ impl WaylandCtx {
         }
     }
 
-    pub fn before_output_collect_canvas(&mut self) {
-        for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
-            // let pool = v.pool.as_mut().unwrap();
-            // self.scm.insert_canvas(*i, pool);
-            v.store_canvas();
-        }
-    }
+    // pub fn before_output_collect_canvas(&mut self) {
+    //     for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+    //         // let pool = v.pool.as_mut().unwrap();
+    //         // self.scm.insert_canvas(*i, pool);
+    //         v.store_canvas();
+    //     }
+    // }
 }

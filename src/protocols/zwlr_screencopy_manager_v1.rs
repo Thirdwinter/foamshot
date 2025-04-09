@@ -51,14 +51,6 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
             }
             zwlr_screencopy_frame_v1::Event::BufferDone => {
                 trace!("bufferdone => data:{}, copy frame to buffer", data);
-                // let mut foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
-                // let buffer = foam_output
-                //     .as_mut()
-                //     .unwrap()
-                //     .base_buffer
-                //     .as_mut()
-                //     .unwrap()
-                //     .wl_buffer();
                 let buffer = app
                     .wayland_ctx
                     .scm

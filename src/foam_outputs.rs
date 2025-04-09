@@ -37,7 +37,7 @@ pub struct FoamOutput {
     /// 用于screencopy
     // pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
     pub base_buffer: Option<Buffer>,
-    pub current_canvas: Option<Vec<u8>>,
+    // pub current_canvas: Option<Vec<u8>>,
     // add freeze layer surfae to impl set_freeze
     pub surface: Option<wl_surface::WlSurface>,
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
@@ -77,8 +77,15 @@ impl FoamOutput {
     pub fn new_subrect(&mut self, x: i32, y: i32, w: i32, h: i32) {
         if w <= 0 || h <= 0 {
             self.subrect = None
+        } else {
+            self.subrect = Some(SubRect::new(self.id, x, y, w, h))
         }
-        self.subrect = Some(SubRect::new(self.id, x, y, w, h))
+    }
+    pub fn max_rect(&mut self) {
+        self.new_subrect(0, 0, self.width, self.height);
+    }
+    pub fn clean_rect(&mut self) {
+        self.new_subrect(-1, -1, -1, -1);
     }
 
     pub fn init_layer(
@@ -113,12 +120,12 @@ impl FoamOutput {
         surface.commit();
     }
 
-    pub fn store_canvas(&mut self) {
-        let buffer = self.base_buffer.as_ref().unwrap();
-        let pool = self.pool.as_mut().unwrap();
-        let canvas: &mut [u8] = buffer.canvas(pool).unwrap();
-        self.current_canvas = Some(canvas.to_vec())
-    }
+    // pub fn store_canvas(&mut self) {
+    //     let buffer = self.base_buffer.as_ref().unwrap();
+    //     let pool = self.pool.as_mut().unwrap();
+    //     let canvas: &mut [u8] = buffer.canvas(pool).unwrap();
+    //     self.current_canvas = Some(canvas.to_vec())
+    // }
 
     pub fn freeze_attach(&mut self, base_canvas: &[u8]) {
         debug!("fn: freeze_attach");

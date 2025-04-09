@@ -27,7 +27,7 @@ struct CliArgs {
     #[arg(long, default_value_t = false)]
     no_freeze: bool,
 
-    /// TODO: Whether to skip automatic full screen capture in interactive mode, the default value is false
+    /// Whether to skip automatic full screen capture in interactive mode, the default value is false
     #[arg(long, default_value_t = false)]
     full_screen: bool,
 
@@ -61,14 +61,11 @@ pub struct FoamConfig {
     /// 截图后是否自动复制到剪贴板
     pub auto_copy: bool,
 
-    /// 截图后是否进入编辑模式
-    //TODO:
+    /// TODO: 截图后是否进入编辑模式
     pub edit: bool,
     /// 截图前是否冻结屏幕
-    //TODO:
     pub freeze: bool,
     /// 是否跳过交互模式自动截全屏
-    //TODO:
     pub full_screen: bool,
 }
 

@@ -54,7 +54,7 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                 interface,
                 version,
             } => {
-                trace!("Registry global: {} {} {}", name, interface, version);
+                // trace!("Registry global: {} {} {}", name, interface, version);
 
                 let interface_name = interface.as_str();
                 match interface_name {
@@ -241,6 +241,11 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 {
                     debug!("surface enter output:{} x:{}, y:{}", foam_output.name, x, y);
 
+                    if app.wayland_ctx.config.full_screen {
+                        app.wayland_ctx.set_one_max(*a.unwrap());
+                        app.mode = Action::Exit;
+                        return;
+                    }
                     app.wayland_ctx.current_index = Some(*a.unwrap());
                     match app.wayland_ctx.pointer_helper.start_index {
                         Some(_) => (),
@@ -345,6 +350,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         // 定义常量代替魔法数字
         const KEY_F: u32 = 33;
         const KEY_ESC: u32 = 1;
+        const KEY_A: u32 = 30;
 
         // 使用模式匹配替代多重if嵌套
         if let wl_keyboard::Event::Key {
@@ -356,6 +362,11 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
             debug!("Key pressed: {}", key);
 
             match key {
+                KEY_A => {
+                    let current_output = app.wayland_ctx.current_index;
+                    app.wayland_ctx.set_one_max(current_output.unwrap());
+                    app.mode = Action::Exit
+                }
                 KEY_F => {
                     // 使用更简洁的状态切换方式
                     app.wayland_ctx.current_freeze = !app.wayland_ctx.current_freeze;
@@ -507,9 +518,9 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
         let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
         match app.mode {
             Action::ToggleFreeze(_) => {
-                debug!("will be re attach_all");
-                app.wayland_ctx.attach_with_udata(*data);
-                app.mode = Action::WaitPointerPress
+                // debug!("will be re attach_all");
+                // app.wayland_ctx.attach_with_udata(*data);
+                // app.mode = Action::WaitPointerPress
             }
             Action::OnDraw => {
                 if outputs.get_mut(data).unwrap().is_dirty() {

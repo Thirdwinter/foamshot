@@ -5,7 +5,8 @@ use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
 use crate::{
     action::{self, Action, IsFreeze},
     config::ImageType,
-    notify, save_helper, wayland_ctx,
+    notify::{self},
+    save_helper, wayland_ctx,
 };
 
 pub struct FoamShot {
@@ -47,24 +48,29 @@ pub fn run_main_loop() {
                 match state {
                     IsFreeze::Freeze => {
                         debug!("next is freeze");
+
+                        // 进行屏幕copy 通过计数器等待所有ready完成
                         shot_foam.wait_freeze(&mut event_queue);
-                        // shot_foam.wayland_ctx.attach_all();
-                        shot_foam.wayland_ctx.toggle_freeze_reattach();
+                        // 发送下一帧，重新附加buffer
+                        shot_foam.toggle_freeze(&mut event_queue);
                     }
                     IsFreeze::UnFreeze => {
                         debug!("next is unfreeze");
 
-                        // shot_foam.wayland_ctx.attach_all();
-                        shot_foam.wayland_ctx.toggle_freeze_reattach();
+                        shot_foam.toggle_freeze(&mut event_queue);
                     }
                 }
+                shot_foam.mode = Action::WaitPointerPress
             }
             Action::OnDraw => {
                 shot_foam.wayland_ctx.update_select_region();
             }
             Action::Exit => {
-                shot_foam.wayland_ctx.generate_sub_rects();
-                shot_foam.wayland_ctx.before_output_collect_canvas();
+                for (_i, v) in shot_foam.wayland_ctx.foam_outputs.as_ref().unwrap() {
+                    debug!("{:?}", v.subrect)
+                }
+                // shot_foam.wayland_ctx.generate_sub_rects();
+                // shot_foam.wayland_ctx.before_output_collect_canvas();
                 if !shot_foam.wayland_ctx.current_freeze {
                     shot_foam.wait_freeze(&mut event_queue);
                 }
@@ -104,13 +110,12 @@ impl FoamShot {
     pub fn wait_freeze(&mut self, event_queue: &mut EventQueue<FoamShot>) {
         self.check_ok();
 
-        // TODO:
+        // NOTE: 先确保屏幕为正常状态
         if self.mode == Action::ToggleFreeze(IsFreeze::UnFreeze)
             || self.mode == Action::ToggleFreeze(IsFreeze::Freeze)
         {
             self.wayland_ctx.unset_freeze();
         }
-        // NOTE: 先确保屏幕为正常状态
 
         // NOTE: 请求全屏copy，之后该去protocols::zwlr_screencopy_manager_v1中依次处理event
         self.wayland_ctx.request_screencopy();
@@ -125,6 +130,21 @@ impl FoamShot {
         self.wayland_ctx.scm.copy_ready = 0;
         // 存储 copy 到的数据
         self.wayland_ctx.store_copy_canvas();
+    }
+
+    pub fn toggle_freeze(&mut self, event_queue: &mut EventQueue<FoamShot>) {
+        // 收集 Output ID
+        let outputs: Vec<_> = if let Some(foam_outputs) = self.wayland_ctx.foam_outputs.as_mut() {
+            foam_outputs.iter().map(|(i, _)| *i).collect()
+        } else {
+            Vec::new()
+        };
+
+        for i in outputs {
+            self.wayland_ctx.attach_with_udata(i);
+        }
+
+        event_queue.blocking_dispatch(self).unwrap();
     }
 
     /// if current compositor unsupported zwl screencopy, foamshot will be exit
