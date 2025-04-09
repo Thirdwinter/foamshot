@@ -23,17 +23,17 @@ struct CliArgs {
     #[arg(long, default_value_t = false)]
     no_copy: bool,
 
-    /// TODO: Whether to enter edit mode after taking a screenshot, the default is false
-    #[arg(long, default_value_t = false)]
-    edit: bool,
-
-    /// TODO: Whether to freeze the screen before taking a screenshot, the default is false
+    /// Whether to freeze the screen before taking a screenshot, the default is false
     #[arg(long, default_value_t = false)]
     no_freeze: bool,
 
     /// TODO: Whether to skip automatic full screen capture in interactive mode, the default value is false
     #[arg(long, default_value_t = false)]
     full_screen: bool,
+
+    /// TODO: Whether to enter edit mode after taking a screenshot, the default is false
+    #[arg(long, default_value_t = false)]
+    edit: bool,
 }
 
 impl CliArgs {
@@ -98,7 +98,7 @@ impl FoamConfig {
             cursor: args.show_cursor,
             edit: args.edit,
             auto_copy: !args.no_copy,
-            freeze: args.no_freeze,
+            freeze: !args.no_freeze,
             full_screen: args.full_screen,
         }
     }

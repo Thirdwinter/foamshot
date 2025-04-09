@@ -4,6 +4,7 @@ mod xdg;
 mod zwlr_layer_shell_v1;
 mod zwlr_screencopy_manager_v1;
 
+use image::codecs::png::ApngDecoder;
 use log::*;
 use smithay_client_toolkit::{
     delegate_shm,
@@ -31,7 +32,13 @@ use wayland_protocols_wlr::{
     screencopy::v1::client::zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
 };
 
-use crate::{action::Action, foam_outputs, foamshot::FoamShot, notify};
+use crate::{
+    action::{Action, IsFreeze},
+    foam_outputs,
+    foamshot::FoamShot,
+    notify,
+    zwlr_screencopy_mode::ZwlrScreencopyMode,
+};
 
 impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
     fn event(
@@ -99,8 +106,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                         // Screencopy manager 绑定
                         _ if interface_name == ZwlrScreencopyManagerV1::interface().name => {
                             if app.wayland_ctx.screencopy_manager.is_none() {
-                                let manager = proxy.bind(name, version, qh, ());
-                                app.wayland_ctx.screencopy_manager = Some((manager, name));
+                                let manager: ZwlrScreencopyManagerV1 =
+                                    proxy.bind(name, version, qh, ());
+                                app.wayland_ctx.screencopy_manager = Some((manager.clone(), name));
+                                app.wayland_ctx.scm =
+                                    ZwlrScreencopyMode::new((manager.clone(), name))
                             }
                         }
 
@@ -350,7 +360,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
 #[allow(unused_variables)]
 impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
     fn event(
-        state: &mut Self,
+        app: &mut Self,
         proxy: &wl_keyboard::WlKeyboard,
         event: <wl_keyboard::WlKeyboard as Proxy>::Event,
         data: &(),
@@ -365,7 +375,17 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         } = event
         {
             if let wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed) = key_state {
-                // debug!("{}", key);
+                debug!("{}", key);
+                if key == 33 {
+                    // TODO: pressed `f` to toggle freeze
+                    if app.wayland_ctx.current_freeze {
+                        app.mode = Action::ToggleFreeze(IsFreeze::UnFreeze);
+                        app.wayland_ctx.current_freeze = false;
+                    } else {
+                        app.mode = Action::ToggleFreeze(IsFreeze::Freeze);
+                        app.wayland_ctx.current_freeze = true;
+                    }
+                }
                 if key == 1 {
                     std::process::exit(0);
                 }
@@ -505,9 +525,25 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
     ) {
         let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
         match app.mode {
+            Action::ToggleFreeze(_) => {
+                debug!("will be re attach_all");
+                app.wayland_ctx.attach_with_udata(*data);
+                app.mode = Action::WaitPointerPress
+            }
             Action::OnDraw => {
                 if outputs.get_mut(data).unwrap().is_dirty() {
-                    outputs.get_mut(data).unwrap().update_select_subrect();
+                    let base_canvas = app
+                        .wayland_ctx
+                        .scm
+                        .base_canvas
+                        .as_mut()
+                        .unwrap()
+                        .get_mut(&data)
+                        .unwrap();
+                    outputs
+                        .get_mut(data)
+                        .unwrap()
+                        .update_select_subrect(base_canvas, app.wayland_ctx.current_freeze);
                 }
             }
             _ => {}

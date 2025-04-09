@@ -84,7 +84,18 @@ pub(crate) fn process_all_outputs(
             .get_mut(&id)
             .ok_or_else(|| format!("显示器{}不存在", id))?;
 
-        process_single_output(output, capture_info, final_surface)?;
+        process_single_output(
+            output,
+            wl_ctx
+                .scm
+                .base_canvas
+                .as_mut()
+                .unwrap()
+                .get_mut(&id)
+                .unwrap(),
+            capture_info,
+            final_surface,
+        )?;
     }
 
     Ok(())
@@ -93,6 +104,7 @@ pub(crate) fn process_all_outputs(
 /// 处理单个显示器输出
 pub(crate) fn process_single_output(
     output: &mut FoamOutput,
+    base_canvas: &mut Vec<u8>,
     capture_info: &CaptureInfo,
     final_surface: &cairo::ImageSurface,
 ) -> Result<(), Box<dyn Error>> {
@@ -117,16 +129,16 @@ pub(crate) fn process_single_output(
         .into());
     }
 
-    let canvas = output
-        .base_canvas
-        .as_mut()
-        .ok_or_else(|| format!("显示器{}的画布未初始化", output.id))?;
+    // let canvas = output
+    //     .base_canvas
+    //     .as_mut()
+    //     .ok_or_else(|| format!("显示器{}的画布未初始化", output.id))?;
 
     let dest_x = (output.global_x + rect.relative_min_x) - capture_info.min_x;
     let dest_y = (output.global_y + rect.relative_min_y) - capture_info.min_y;
 
     let sub_surface = create_sub_surface(
-        canvas,
+        base_canvas,
         output.width,
         rect.relative_min_x,
         rect.relative_min_y,

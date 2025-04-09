@@ -7,6 +7,7 @@ mod pointer_helper;
 mod protocols;
 mod save_helper;
 mod wayland_ctx;
+mod zwlr_screencopy_mode;
 
 fn main() {
     env_logger::init();

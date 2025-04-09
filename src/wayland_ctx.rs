@@ -21,7 +21,9 @@ use wayland_protocols_wlr::{
     screencopy::v1::client::zwlr_screencopy_manager_v1,
 };
 
-use crate::{config, foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper};
+use crate::{
+    config, foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper, zwlr_screencopy_mode,
+};
 
 #[derive(Default)]
 pub struct WaylandCtx {
@@ -43,6 +45,8 @@ pub struct WaylandCtx {
     /// FIX: 不符合预期的pointer事件，用于记录其中的 surface 索引
     pub unknow_index: Option<usize>,
 
+    pub current_freeze: bool,
+
     /// 每个输出设备一个
     pub foam_outputs: Option<HashMap<usize, foam_outputs::FoamOutput>>,
     pub frames_ready: usize,
@@ -52,15 +56,18 @@ pub struct WaylandCtx {
     pub pointer_helper: PointerHelper,
 
     pub config: config::FoamConfig,
+    pub scm: zwlr_screencopy_mode::ZwlrScreencopyMode,
 }
 
 impl WaylandCtx {
     pub fn new(shm: shm::Shm, qh: QueueHandle<FoamShot>) -> Self {
+        let config = config::FoamConfig::new();
         Self {
             qh: Some(qh),
             shm: Some(shm),
             foam_outputs: Some(HashMap::new()),
             config: config::FoamConfig::new(),
+            current_freeze: config.freeze,
             ..Default::default()
         }
     }
@@ -85,15 +92,31 @@ impl WaylandCtx {
         }
     }
 
-    pub fn set_freeze_with_udata(&mut self, udata: usize) {
+    pub fn attach_with_udata(&mut self, udata: usize) {
         let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(&udata);
-        foam_output.as_mut().unwrap().set_freeze();
-        // foam_output.as_mut().unwrap().no_freeze();
+        if self.current_freeze {
+            let base_canvas = self
+                .scm
+                .base_canvas
+                .as_mut()
+                .unwrap()
+                .get_mut(&udata)
+                .unwrap();
+            foam_output.as_mut().unwrap().freeze_attach(base_canvas);
+        } else {
+            foam_output.as_mut().unwrap().no_freeze_attach();
+        }
+    }
+
+    pub fn unset_freeze(&mut self) {
+        for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+            v.clean_attach();
+        }
     }
 
     pub fn request_screencopy(&mut self) {
         debug!("发起屏幕copy请求");
-        let screencopy_manager = if let Some((ref manager, _)) = self.screencopy_manager {
+        let _screencopy_manager = if let Some((ref manager, _)) = self.screencopy_manager {
             manager
         } else {
             error!("screencopy_manager 未初始化");
@@ -110,42 +133,20 @@ impl WaylandCtx {
         // 遍历所有 outputs
         let foam_outputs = self.foam_outputs.as_mut().unwrap();
         for (index, foam_output) in foam_outputs.iter_mut() {
-            let frame = screencopy_manager.capture_output(
-                self.config.cursor as i32,
+            // let frame = screencopy_manager.capture_output(
+            //     self.config.cursor as i32,
+            //     foam_output.output.as_ref().unwrap(),
+            //     qh,
+            //     *index,
+            // );
+            // foam_output.screencopy_frame = Some(frame);
+            let _ = self.scm.request_copy_one(
+                self.config.cursor,
                 foam_output.output.as_ref().unwrap(),
                 qh,
                 *index,
             );
-            foam_output.screencopy_frame = Some(frame);
         }
-    }
-
-    #[allow(unused)]
-    pub fn request_screencopy_with_udata(&self, udata: usize) {
-        // debug!("output:{} 发起屏幕copy请求", udata);
-        let screencopy_manager = if let Some((ref manager, _)) = self.screencopy_manager {
-            manager
-        } else {
-            error!("screencopy_manager 未初始化");
-            return;
-        };
-
-        let qh = if let Some(ref qh) = self.qh {
-            qh
-        } else {
-            error!("QueueHandle 未初始化");
-            return;
-        };
-
-        let foam_outputs = self.foam_outputs.as_ref().unwrap();
-        let current_output = foam_outputs.get(&udata).unwrap();
-        let frame = screencopy_manager.capture_output(
-            true as i32,
-            current_output.output.as_ref().unwrap(),
-            qh,
-            udata,
-        );
-        // current_output.screencopy_frame = Some(frame);
     }
 
     pub fn generate_sub_rects(&mut self) {
@@ -187,6 +188,12 @@ impl WaylandCtx {
         }
     }
 
+    pub fn toggle_freeze_reattach(&mut self) {
+        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+            v.send_next_frame(self.qh.as_ref().unwrap(), *i);
+        }
+    }
+
     pub fn update_select_region(&mut self) {
         for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
             v.send_next_frame(self.qh.as_ref().unwrap(), *i);
@@ -195,7 +202,17 @@ impl WaylandCtx {
     }
 
     pub fn store_copy_canvas(&mut self) {
-        for (_, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+            let pool = v.pool.as_mut().unwrap();
+            self.scm.insert_canvas(*i, pool);
+            // v.store_canvas();
+        }
+    }
+
+    pub fn before_output_collect_canvas(&mut self) {
+        for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+            // let pool = v.pool.as_mut().unwrap();
+            // self.scm.insert_canvas(*i, pool);
             v.store_canvas();
         }
     }

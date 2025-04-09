@@ -1,9 +1,9 @@
 use log::debug;
 use smithay_client_toolkit::shm::Shm;
-use wayland_client::{Connection, globals::registry_queue_init};
+use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
 
 use crate::{
-    action::{self, Action},
+    action::{self, Action, IsFreeze},
     config::ImageType,
     notify, save_helper, wayland_ctx,
 };
@@ -25,25 +25,12 @@ pub fn run_main_loop() {
     let _registry = display.get_registry(&qh, ());
 
     let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
-    // let pool = SlotPool::new(256 * 256 * 4, &shm).expect("Failed to create pool");
     let mut shot_foam = FoamShot::new(shm, qh);
     debug!("{:?}", shot_foam.wayland_ctx.config);
 
     event_queue.roundtrip(&mut shot_foam).expect("init failed");
 
-    shot_foam.check_ok();
-
-    // NOTE: 请求全屏copy，之后该去protocols::zwlr_screencopy_manager_v1中依次处理event
-    shot_foam.wayland_ctx.request_screencopy();
-
-    // 等待所有屏幕copy完成
-    while shot_foam.wayland_ctx.frames_ready
-        != shot_foam.wayland_ctx.foam_outputs.as_ref().unwrap().len()
-    {
-        event_queue.blocking_dispatch(&mut shot_foam).unwrap();
-    }
-    // 存储 copy 到的数据
-    shot_foam.wayland_ctx.store_copy_canvas();
+    shot_foam.wait_freeze(&mut event_queue);
 
     // NOTE: 创建layer && surface提交
     shot_foam.wayland_ctx.init_base_layers();
@@ -56,11 +43,29 @@ pub fn run_main_loop() {
         match &shot_foam.mode {
             Action::Init => {}
             Action::WaitPointerPress => {}
+            Action::ToggleFreeze(state) => match state {
+                IsFreeze::Freeze => {
+                    debug!("next is freeze");
+                    shot_foam.wait_freeze(&mut event_queue);
+                    // shot_foam.wayland_ctx.attach_all();
+                    shot_foam.wayland_ctx.toggle_freeze_reattach();
+                }
+                IsFreeze::UnFreeze => {
+                    debug!("next is unfreeze");
+
+                    // shot_foam.wayland_ctx.attach_all();
+                    shot_foam.wayland_ctx.toggle_freeze_reattach();
+                }
+            },
             Action::OnDraw => {
                 shot_foam.wayland_ctx.update_select_region();
             }
             Action::Exit => {
                 shot_foam.wayland_ctx.generate_sub_rects();
+                shot_foam.wayland_ctx.before_output_collect_canvas();
+                if !shot_foam.wayland_ctx.current_freeze {
+                    shot_foam.wait_freeze(&mut event_queue);
+                }
                 match shot_foam.wayland_ctx.config.image_type {
                     ImageType::Png => {
                         if let Err(e) = save_helper::save_to_png(&mut shot_foam.wayland_ctx) {
@@ -90,6 +95,34 @@ impl FoamShot {
             wayland_ctx: wayland_ctx::WaylandCtx::new(shm, qh),
             mode: Action::default(),
         }
+    }
+
+    /// 临时借用 event_queue 进行copy
+    /// 发起copy请求 -> 等待全部 output 完成 -> 重置计数器 -> 缓存 canvas
+    pub fn wait_freeze(&mut self, event_queue: &mut EventQueue<FoamShot>) {
+        self.check_ok();
+
+        // TODO:
+        if self.mode == Action::ToggleFreeze(IsFreeze::UnFreeze)
+            || self.mode == Action::ToggleFreeze(IsFreeze::Freeze)
+        {
+            self.wayland_ctx.unset_freeze();
+        }
+        // NOTE: 先确保屏幕为正常状态
+
+        // NOTE: 请求全屏copy，之后该去protocols::zwlr_screencopy_manager_v1中依次处理event
+        self.wayland_ctx.request_screencopy();
+
+        // 等待所有屏幕copy完成
+        while self.wayland_ctx.scm.copy_ready
+            != self.wayland_ctx.foam_outputs.as_ref().unwrap().len()
+        {
+            event_queue.blocking_dispatch(self).unwrap();
+        }
+        // 重置计数器
+        self.wayland_ctx.scm.copy_ready = 0;
+        // 存储 copy 到的数据
+        self.wayland_ctx.store_copy_canvas();
     }
 
     /// if current compositor unsupported zwl screencopy, foamshot will be exit
