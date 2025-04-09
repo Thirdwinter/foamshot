@@ -4,7 +4,7 @@ use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
 
 use crate::{
     action::{self, Action, IsFreeze},
-    config::ImageType,
+    config::{FoamConfig, ImageType},
     notify::{self},
     save_helper, wayland_ctx,
 };
@@ -66,6 +66,7 @@ pub fn run_main_loop() {
                 shot_foam.wayland_ctx.update_select_region();
             }
             Action::Exit => {
+                shot_foam.wayland_ctx.config = FoamConfig::new();
                 for (_i, v) in shot_foam.wayland_ctx.foam_outputs.as_ref().unwrap() {
                     debug!("{:?}", v.subrect)
                 }

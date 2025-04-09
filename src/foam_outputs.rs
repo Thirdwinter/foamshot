@@ -181,11 +181,13 @@ impl FoamOutput {
         cr.set_source_rgba(0.8, 0.8, 0.8, 0.3);
         cr.rectangle(0.0, 0.0, surface_width, surface_height);
 
+        let subrect = self.subrect.as_ref().unwrap();
+
         let (x, y, rw, rh) = (
-            self.subrect.as_ref().unwrap().relative_min_x,
-            self.subrect.as_ref().unwrap().relative_min_y,
-            self.subrect.as_ref().unwrap().width,
-            self.subrect.as_ref().unwrap().height,
+            subrect.relative_min_x,
+            subrect.relative_min_y,
+            subrect.width,
+            subrect.height,
         );
 
         // 添加内部矩形路径（作为裁剪区域）
@@ -197,6 +199,37 @@ impl FoamOutput {
         // 填充路径区域
         cr.fill().unwrap();
 
+        // 添加边框（根据与显示器边缘的重合情况决定是否绘制）
+        cr.save().unwrap(); // 保存当前状态
+        cr.set_line_width(2.0); // 设置边框宽度
+        cr.set_source_rgba(0.0, 0.0, 0.0, 1.0); // 设置边框颜色为黑色
+
+        // 判断是否绘制左边
+        if subrect.relative_min_x > 0 {
+            cr.move_to(x.into(), y.into());
+            cr.line_to(x.into(), (y + rh).into());
+        }
+
+        // 判断是否绘制上边
+        if subrect.relative_min_y > 0 {
+            cr.move_to(x.into(), y.into());
+            cr.line_to((x + rw).into(), y.into());
+        }
+
+        // 判断是否绘制右边
+        if (x + rw) < self.width {
+            cr.move_to((x + rw).into(), y.into());
+            cr.line_to((x + rw).into(), (y + rh).into());
+        }
+
+        // 判断是否绘制下边
+        if (y + rh) < self.height {
+            cr.move_to(x.into(), (y + rh).into());
+            cr.line_to((x + rw).into(), (y + rh).into());
+        }
+
+        cr.stroke().unwrap(); // 绘制边框
+        cr.restore().unwrap(); // 恢复状态
         buffer.attach_to(surface).unwrap(); // 如果 attach_to 失败则返回
 
         surface.damage_buffer(0, 0, w, h);
