@@ -13,8 +13,8 @@ use wayland_client::{
     Dispatch, Proxy,
     globals::GlobalListContents,
     protocol::{
-        wl_callback, wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat,
-        wl_surface,
+        wl_callback::{self},
+        wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_registry, wl_seat, wl_surface,
     },
 };
 use wayland_protocols::{
@@ -99,11 +99,11 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                     }
                     // Screencopy manager 绑定
                     _ if interface_name == ZwlrScreencopyManagerV1::interface().name => {
-                        if app.wayland_ctx.screencopy_manager.is_none() {
+                        if app.wayland_ctx.scm.manager.is_none() {
                             let manager: ZwlrScreencopyManagerV1 =
                                 proxy.bind(name, version, qh, ());
-                            app.wayland_ctx.screencopy_manager = Some((manager.clone(), name));
-                            app.wayland_ctx.scm = ZwlrScreencopyMode::new((manager.clone(), name));
+                            // app.wayland_ctx.screencopy_manager = Some((manager.clone(), name));
+                            app.wayland_ctx.scm = ZwlrScreencopyMode::new((manager, name));
                         }
                     }
                     // Cursor shape 相关绑定
@@ -155,12 +155,10 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             warn!("WlSeat was removed");
                             app.wayland_ctx.seat = None;
                         }
-                    } else if let Some((_, screencopymanager_name)) =
-                        &app.wayland_ctx.screencopy_manager
-                    {
+                    } else if let Some((_, screencopymanager_name)) = &app.wayland_ctx.scm.manager {
                         if name == *screencopymanager_name {
                             warn!("ZwlrScreencopyManagerV1 was removed");
-                            app.wayland_ctx.screencopy_manager = None;
+                            app.wayland_ctx.scm.manager = None;
                         }
                     } else if let Some((_, layer_shell_name)) = &app.wayland_ctx.layer_shell {
                         if name == *layer_shell_name {
@@ -515,33 +513,12 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        let outputs = app.wayland_ctx.foam_outputs.as_mut().unwrap();
-        match app.mode {
-            Action::ToggleFreeze(_) => {
-                // debug!("will be re attach_all");
-                // app.wayland_ctx.attach_with_udata(*data);
-                // app.mode = Action::WaitPointerPress
-            }
-            Action::OnDraw => {
-                if outputs.get_mut(data).unwrap().is_dirty() {
-                    let base_canvas = app
-                        .wayland_ctx
-                        .scm
-                        .base_canvas
-                        .as_mut()
-                        .unwrap()
-                        .get_mut(data)
-                        .unwrap();
-                    outputs
-                        .get_mut(data)
-                        .unwrap()
-                        .update_select_subrect(base_canvas, app.wayland_ctx.current_freeze);
-                }
+        match event {
+            wl_callback::Event::Done { callback_data } => {
+                app.wayland_ctx.update_select_region();
             }
             _ => {}
         }
-
-        // todo!()
     }
 }
 

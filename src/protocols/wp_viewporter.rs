@@ -20,12 +20,12 @@ impl Dispatch<wp_viewporter::WpViewporter, ()> for FoamShot {
 
 // NOTE: ne events
 #[allow(unused_variables)]
-impl Dispatch<wp_viewport::WpViewport, ()> for FoamShot {
+impl Dispatch<wp_viewport::WpViewport, usize> for FoamShot {
     fn event(
         app: &mut Self,
         proxy: &wp_viewport::WpViewport,
         event: <wp_viewport::WpViewport as Proxy>::Event,
-        data: &(),
+        data: &usize,
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {

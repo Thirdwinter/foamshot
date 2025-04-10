@@ -3,8 +3,9 @@ use log::debug;
 use smithay_client_toolkit::shm::slot::{self, Buffer, SlotPool};
 use wayland_client::{
     QueueHandle,
-    protocol::{wl_output, wl_shm::Format, wl_surface},
+    protocol::{wl_callback, wl_output, wl_shm::Format, wl_surface},
 };
+use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{self, Layer},
     zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
@@ -13,7 +14,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
 use crate::{cairo_render::draw_base, foamshot::FoamShot};
 
 /// NOTE: 为物理显示器做的抽象，包含其基础信息
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct FoamOutput {
     /// 索引，由output event进行赋值
     pub id: usize,
@@ -31,21 +32,19 @@ pub struct FoamOutput {
     pub logical_width: i32,
     pub logical_height: i32,
     /// 显示器缩放分数，默认设置为1
-    #[allow(unused)]
     pub scale: i32,
+    pub viewport: Option<wp_viewport::WpViewport>,
 
-    /// 用于screencopy
-    // pub screencopy_frame: Option<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1>,
     pub base_buffer: Option<Buffer>,
-    // pub current_canvas: Option<Vec<u8>>,
     // add freeze layer surfae to impl set_freeze
     pub surface: Option<wl_surface::WlSurface>,
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
-    pub old_subrect: Option<SubRect>,
 
-    /// TEST:
+    pub callback: Option<wl_callback::WlCallback>,
+    pub need_redraw: bool,
+
     pub pool: Option<slot::SlotPool>,
 }
 
@@ -92,13 +91,15 @@ impl FoamOutput {
         &mut self,
         layer_shell: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
         qh: &QueueHandle<FoamShot>,
+        viewporter: wp_viewporter::WpViewporter,
     ) {
         let id = self.id;
         let output = self.output.as_ref().unwrap();
-        // let layer_shell = wl_ctx.layer_shell.as_ref().expect("Missing layer shell");
-        // let qh = wl_ctx.qh.as_ref().expect("Missing qh");
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_mut().expect("Missing surfaces");
+
+        surface.set_buffer_scale(self.scale);
+        self.viewport = Some(viewporter.get_viewport(surface, qh, id));
 
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
             layer_shell,
@@ -120,13 +121,6 @@ impl FoamOutput {
         surface.commit();
     }
 
-    // pub fn store_canvas(&mut self) {
-    //     let buffer = self.base_buffer.as_ref().unwrap();
-    //     let pool = self.pool.as_mut().unwrap();
-    //     let canvas: &mut [u8] = buffer.canvas(pool).unwrap();
-    //     self.current_canvas = Some(canvas.to_vec())
-    // }
-
     pub fn freeze_attach(&mut self, base_canvas: &[u8]) {
         debug!("fn: freeze_attach");
         let (w, h) = (self.width, self.height);
@@ -144,8 +138,9 @@ impl FoamOutput {
     }
 
     pub fn update_select_subrect(&mut self, base_canvas: &[u8], freeze: bool) {
-        // NOTE: 绘制之前刷新缓存
-        self.old_subrect = self.subrect.clone();
+        if self.subrect.is_none() {
+            return;
+        }
 
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
@@ -153,8 +148,6 @@ impl FoamOutput {
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
 
         if freeze {
-            canvas.fill(0);
-
             canvas.copy_from_slice(base_canvas);
         } else {
             canvas.fill(0);
@@ -230,12 +223,16 @@ impl FoamOutput {
 
         cr.stroke().unwrap(); // 绘制边框
         cr.restore().unwrap(); // 恢复状态
+
+        // surface.frame(qh, self.id);
+
         buffer.attach_to(surface).unwrap(); // 如果 attach_to 失败则返回
 
         surface.damage_buffer(0, 0, w, h);
 
         // 提交 surface
         surface.commit();
+        self.need_redraw = false;
         self.base_buffer = Some(buffer)
     }
 
@@ -265,26 +262,24 @@ impl FoamOutput {
         self.base_buffer = Some(buffer)
     }
 
-    #[inline(always)]
-    pub fn is_subrect_changed(&self) -> bool {
-        match self.old_subrect.as_ref() {
-            // 当old存在时，检查new是否存在以及值是否相同
-            Some(old) => self.subrect.as_ref() != Some(old),
-            // old不存在时必然发生变化
-            None => true,
-        }
-    }
-    #[inline(always)]
-    pub fn has_subrect(&self) -> bool {
-        self.subrect.is_some()
-    }
-
-    pub fn is_dirty(&mut self) -> bool {
-        self.has_subrect() && self.is_subrect_changed()
-    }
+    // pub fn is_subrect_changed(&self) -> bool {
+    //     match self.old_subrect.as_ref() {
+    //         // 当old存在时，检查new是否存在以及值是否相同
+    //         Some(old) => self.subrect.as_ref() != Some(old),
+    //         // old不存在时必然发生变化
+    //         None => true,
+    //     }
+    // }
+    // pub fn has_subrect(&self) -> bool {
+    //     self.subrect.is_some()
+    // }
+    //
+    // pub fn is_dirty(&mut self) -> bool {
+    //     self.has_subrect() && self.is_subrect_changed()
+    // }
     pub fn send_next_frame(&mut self, qh: &QueueHandle<FoamShot>, udata: usize) {
         let surface = self.surface.as_mut().unwrap();
-        surface.frame(qh, udata);
+        self.callback = Some(surface.frame(qh, udata));
     }
 }
 

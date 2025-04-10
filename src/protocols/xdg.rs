@@ -37,23 +37,6 @@ impl Dispatch<zxdg_output_v1::ZxdgOutputV1, usize> for FoamShot {
             .unwrap()
             .get_mut(data)
             .unwrap();
-        // // 类型转换确保与HashMap键类型一致
-        // let monitor_id = *data as usize;
-        //
-        // // 使用Entry API保证原子性操作
-        // let monitors = app
-        //     .wayland_ctx
-        //     .monitors
-        //     .get_or_insert_with(|| HashMap::new());
-        //
-        // let monitor = monitors.entry(monitor_id).or_insert_with(|| Monitor {
-        //     x: 0,
-        //     y: 0,
-        //     width: 0,
-        //     height: 0,
-        //     name: String::new(),
-        //     scale: 1,
-        // });
 
         match event {
             zxdg_output_v1::Event::LogicalPosition { x, y } => {

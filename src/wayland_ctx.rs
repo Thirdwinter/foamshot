@@ -16,10 +16,7 @@ use wayland_protocols::{
     },
     xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
 };
-use wayland_protocols_wlr::{
-    layer_shell::v1::client::zwlr_layer_shell_v1,
-    screencopy::v1::client::zwlr_screencopy_manager_v1,
-};
+use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 
 use crate::{
     config, foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper, zwlr_screencopy_mode,
@@ -35,7 +32,7 @@ pub struct WaylandCtx {
     pub qh: Option<QueueHandle<FoamShot>>,
     pub shm: Option<shm::Shm>,
     // pub pool: Option<slot::SlotPool>,
-    pub screencopy_manager: Option<(zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, u32)>,
+    // pub screencopy_manager: Option<(zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, u32)>,
     pub layer_shell: Option<(zwlr_layer_shell_v1::ZwlrLayerShellV1, u32)>,
     pub xdg_output_manager: Option<(zxdg_output_manager_v1::ZxdgOutputManagerV1, u32)>,
     pub xdgwmbase: Option<(xdg_wm_base::XdgWmBase, u32)>,
@@ -96,10 +93,12 @@ impl WaylandCtx {
             v.init_layer(
                 &self.layer_shell.as_ref().unwrap().0,
                 self.qh.as_ref().unwrap(),
+                self.viewporter.clone().unwrap().0,
             );
         }
     }
 
+    /// 重新将缓冲区附加到surface，生成新的一帧，此处仅可附加 `freeze`/`no_freeze` 两种的内容
     pub fn attach_with_udata(&mut self, udata: usize) {
         let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(&udata);
         if self.current_freeze {
@@ -116,15 +115,17 @@ impl WaylandCtx {
         }
     }
 
+    /// 用一个空的buffer附加到surface，使屏幕恢复正常状态，用来 toggle freeze 前清空屏幕以便进行copy
     pub fn unset_freeze(&mut self) {
         for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
             v.clean_attach();
         }
     }
 
+    /// 所有输出设备发起全屏捕获请求
     pub fn request_screencopy(&mut self) {
         debug!("发起屏幕copy请求");
-        let _screencopy_manager = if let Some((ref manager, _)) = self.screencopy_manager {
+        let _screencopy_manager = if let Some((ref manager, _)) = self.scm.manager {
             manager
         } else {
             error!("screencopy_manager 未初始化");
@@ -150,6 +151,7 @@ impl WaylandCtx {
         }
     }
 
+    /// 在鼠标按下和拖动时候被调用，为每个output生成子矩形，如果成功生成，对应output标记为需要重绘, 且surface将发送帧回调
     pub fn generate_sub_rects(&mut self) {
         let foam_outputs = self.foam_outputs.as_mut().unwrap();
         let start_index = self.pointer_helper.start_index.unwrap();
@@ -181,11 +183,28 @@ impl WaylandCtx {
                 let width = intersection_max_x - intersection_min_x;
                 let height = intersection_max_y - intersection_min_y;
                 m.new_subrect(relative_min_x, relative_min_y, width, height);
+                m.need_redraw = true;
             } else {
                 m.subrect = None;
+                m.need_redraw = false
             }
+            m.surface
+                .as_mut()
+                .unwrap()
+                .frame(self.qh.as_ref().unwrap(), m.id);
+            m.surface.as_mut().unwrap().commit();
+        }
+    }
 
-            // debug!("id:{}, subrect:{:?}", _id, m.subrect);
+    /// 在wl_callback中被调用，为需要重绘的输出更新下一帧
+    pub fn update_select_region(&mut self) {
+        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+            if !v.need_redraw {
+                continue;
+            }
+            let base_canvas = self.scm.base_canvas.as_mut().unwrap().get_mut(i).unwrap();
+
+            v.update_select_subrect(base_canvas, self.current_freeze);
         }
     }
 
@@ -196,13 +215,6 @@ impl WaylandCtx {
         }
     }
 
-    pub fn update_select_region(&mut self) {
-        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
-            v.send_next_frame(self.qh.as_ref().unwrap(), *i);
-            // v.update_select_subrect();
-        }
-    }
-
     pub fn store_copy_canvas(&mut self) {
         for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
             let pool = v.pool.as_mut().unwrap();
@@ -210,12 +222,4 @@ impl WaylandCtx {
             // v.store_canvas();
         }
     }
-
-    // pub fn before_output_collect_canvas(&mut self) {
-    //     for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
-    //         // let pool = v.pool.as_mut().unwrap();
-    //         // self.scm.insert_canvas(*i, pool);
-    //         v.store_canvas();
-    //     }
-    // }
 }

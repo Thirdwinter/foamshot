@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug, error};
 use smithay_client_toolkit::shm::Shm;
 use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
 
@@ -63,7 +63,7 @@ pub fn run_main_loop() {
                 shot_foam.mode = Action::WaitPointerPress
             }
             Action::OnDraw => {
-                shot_foam.wayland_ctx.update_select_region();
+                // shot_foam.wayland_ctx.update_select_region();
             }
             Action::Exit => {
                 shot_foam.wayland_ctx.config = FoamConfig::new();
@@ -99,6 +99,7 @@ pub fn run_main_loop() {
 }
 
 impl FoamShot {
+    /// 创建新实例
     pub fn new(shm: Shm, qh: wayland_client::QueueHandle<FoamShot>) -> FoamShot {
         Self {
             wayland_ctx: wayland_ctx::WaylandCtx::new(shm, qh),
@@ -125,7 +126,15 @@ impl FoamShot {
         while self.wayland_ctx.scm.copy_ready
             != self.wayland_ctx.foam_outputs.as_ref().unwrap().len()
         {
-            event_queue.blocking_dispatch(self).unwrap();
+            match event_queue.blocking_dispatch(self) {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("error in wait_freeze: {}", e);
+                    notify::send(notify::NotificationLevel::Error, "error foamshot exit");
+                    std::process::exit(0)
+                }
+            }
+            // event_queue.blocking_dispatch(self).unwrap();
         }
         // 重置计数器
         self.wayland_ctx.scm.copy_ready = 0;
@@ -133,6 +142,7 @@ impl FoamShot {
         self.wayland_ctx.store_copy_canvas();
     }
 
+    /// 上层调用，切换所有输出上的屏幕冻结状态，在调用前需要使用 `wait_freeze` 重新进行屏幕copy
     pub fn toggle_freeze(&mut self, event_queue: &mut EventQueue<FoamShot>) {
         // 收集 Output ID
         let outputs: Vec<_> = if let Some(foam_outputs) = self.wayland_ctx.foam_outputs.as_mut() {
@@ -151,7 +161,7 @@ impl FoamShot {
     /// if current compositor unsupported zwl screencopy, foamshot will be exit
     pub fn check_ok(&self) {
         // check screencopy manager exists
-        if self.wayland_ctx.screencopy_manager.is_none() {
+        if self.wayland_ctx.scm.manager.is_none() {
             notify::send(
                 notify::NotificationLevel::Error,
                 "this compositor unsupported zwl screencopy, foamshot will be exit",
