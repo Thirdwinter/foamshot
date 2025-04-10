@@ -106,7 +106,7 @@ impl FoamOutput {
             surface,
             Some(output),
             Layer::Top,
-            "foam_freeze".to_string(),
+            "foamshot-selection".to_string(),
             qh,
             id,
         );
