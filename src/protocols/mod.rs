@@ -35,7 +35,6 @@ use crate::{
     action::{Action, IsFreeze},
     foam_outputs,
     foamshot::FoamShot,
-    notify,
     zwlr_screencopy_mode::ZwlrScreencopyMode,
 };
 
@@ -215,7 +214,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     .wayland_ctx
                     .set_cursor_shape(serial, Shape::Crosshair, proxy)
                 {
-                    notify::send(notify::NotificationLevel::Warn, "can not set cursor shape")
+                    app.send_warn("can not set cursor shape");
                 }
 
                 let foam_output = app

@@ -3,7 +3,7 @@ use log::debug;
 use smithay_client_toolkit::shm::slot::{self, Buffer, SlotPool};
 use wayland_client::{
     QueueHandle,
-    protocol::{wl_callback, wl_output, wl_shm::Format, wl_surface},
+    protocol::{wl_output, wl_shm::Format, wl_surface},
 };
 use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
 use wayland_protocols_wlr::layer_shell::v1::client::{
@@ -42,13 +42,23 @@ pub struct FoamOutput {
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
 
-    pub callback: Option<wl_callback::WlCallback>,
     pub need_redraw: bool,
 
     pub pool: Option<slot::SlotPool>,
 }
 
 impl FoamOutput {
+    pub fn new(id: usize, output: wl_output::WlOutput, pool: SlotPool) -> Self {
+        Self {
+            id,
+            output: Some(output),
+            scale: 1,
+            name: "unnamed".to_string(),
+            pool: Some(pool),
+            ..Default::default()
+        }
+    }
+
     pub fn convert_pos_to_surface(
         src_output: &FoamOutput,
         target_output: &FoamOutput,
@@ -62,16 +72,6 @@ impl FoamOutput {
         let dst_y = global_y - target_output.global_y as f64;
 
         (dst_x, dst_y)
-    }
-    pub fn new(id: usize, output: wl_output::WlOutput, pool: SlotPool) -> Self {
-        Self {
-            id,
-            output: Some(output),
-            scale: 1,
-            name: "unnamed".to_string(),
-            pool: Some(pool),
-            ..Default::default()
-        }
     }
     pub fn new_subrect(&mut self, x: i32, y: i32, w: i32, h: i32) {
         if w <= 0 || h <= 0 {
@@ -129,6 +129,30 @@ impl FoamOutput {
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         canvas.copy_from_slice(base_canvas);
 
+        draw_base(canvas, w, h);
+
+        buffer.attach_to(surface).unwrap();
+        surface.damage_buffer(0, 0, w, h);
+        surface.commit();
+        self.base_buffer = Some(buffer)
+    }
+    pub fn clean_attach(&mut self) {
+        let (w, h) = (self.width, self.height);
+        let surface = self.surface.as_ref().expect("Missing surfaces");
+        let pool = self.pool.as_mut().unwrap();
+        let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
+        canvas.fill(0);
+        buffer.attach_to(surface).unwrap();
+        surface.damage_buffer(0, 0, w, h);
+        surface.commit();
+        self.base_buffer = Some(buffer)
+    }
+    pub fn no_freeze_attach(&mut self) {
+        let (w, h) = (self.width, self.height);
+        let surface = self.surface.as_ref().expect("Missing surfaces");
+        let pool = self.pool.as_mut().unwrap();
+        let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
+        canvas.fill(0);
         draw_base(canvas, w, h);
 
         buffer.attach_to(surface).unwrap();
@@ -234,52 +258,6 @@ impl FoamOutput {
         surface.commit();
         self.need_redraw = false;
         self.base_buffer = Some(buffer)
-    }
-
-    pub fn clean_attach(&mut self) {
-        let (w, h) = (self.width, self.height);
-        let surface = self.surface.as_ref().expect("Missing surfaces");
-        let pool = self.pool.as_mut().unwrap();
-        let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
-        canvas.fill(0);
-        buffer.attach_to(surface).unwrap();
-        surface.damage_buffer(0, 0, w, h);
-        surface.commit();
-        self.base_buffer = Some(buffer)
-    }
-
-    pub fn no_freeze_attach(&mut self) {
-        let (w, h) = (self.width, self.height);
-        let surface = self.surface.as_ref().expect("Missing surfaces");
-        let pool = self.pool.as_mut().unwrap();
-        let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
-        canvas.fill(0);
-        draw_base(canvas, w, h);
-
-        buffer.attach_to(surface).unwrap();
-        surface.damage_buffer(0, 0, w, h);
-        surface.commit();
-        self.base_buffer = Some(buffer)
-    }
-
-    // pub fn is_subrect_changed(&self) -> bool {
-    //     match self.old_subrect.as_ref() {
-    //         // 当old存在时，检查new是否存在以及值是否相同
-    //         Some(old) => self.subrect.as_ref() != Some(old),
-    //         // old不存在时必然发生变化
-    //         None => true,
-    //     }
-    // }
-    // pub fn has_subrect(&self) -> bool {
-    //     self.subrect.is_some()
-    // }
-    //
-    // pub fn is_dirty(&mut self) -> bool {
-    //     self.has_subrect() && self.is_subrect_changed()
-    // }
-    pub fn send_next_frame(&mut self, qh: &QueueHandle<FoamShot>, udata: usize) {
-        let surface = self.surface.as_mut().unwrap();
-        self.callback = Some(surface.frame(qh, udata));
     }
 }
 

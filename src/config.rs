@@ -34,6 +34,10 @@ struct CliArgs {
     /// TODO: Whether to enter edit mode after taking a screenshot, the default is false
     #[arg(long, default_value_t = false)]
     edit: bool,
+
+    /// disable desktop notify, the default is false
+    #[arg(long, default_value_t = false)]
+    no_notify: bool,
 }
 
 impl CliArgs {
@@ -67,6 +71,8 @@ pub struct FoamConfig {
     pub freeze: bool,
     /// 是否跳过交互模式自动截全屏
     pub full_screen: bool,
+
+    pub allow_notify: bool,
 }
 
 impl Default for FoamConfig {
@@ -97,6 +103,7 @@ impl FoamConfig {
             auto_copy: !args.no_copy,
             freeze: !args.no_freeze,
             full_screen: args.full_screen,
+            allow_notify: !args.no_notify,
         }
     }
 

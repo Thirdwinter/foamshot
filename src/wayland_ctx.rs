@@ -208,13 +208,6 @@ impl WaylandCtx {
         }
     }
 
-    #[allow(unused)]
-    pub fn toggle_freeze_reattach(&mut self) {
-        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
-            v.send_next_frame(self.qh.as_ref().unwrap(), *i);
-        }
-    }
-
     pub fn store_copy_canvas(&mut self) {
         for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
             let pool = v.pool.as_mut().unwrap();

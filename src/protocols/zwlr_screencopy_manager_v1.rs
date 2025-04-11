@@ -1,11 +1,11 @@
 use log::*;
+use smithay_client_toolkit::shm::slot::SlotPool;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
 };
 
-use crate::action::Action;
-use crate::foamshot::FoamShot;
+use crate::{action::Action, foamshot::FoamShot};
 
 impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamShot {
     fn event(
@@ -27,6 +27,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                     "creating buffer: data is {}, width: {}, height: {}, stride: {}, format: {:?}",
                     data, width, height, stride, format
                 );
+
                 let current = app
                     .wayland_ctx
                     .foam_outputs
@@ -34,6 +35,11 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                     .unwrap()
                     .get_mut(data)
                     .unwrap();
+                let shm = app.wayland_ctx.shm.as_mut().unwrap();
+                let pool = SlotPool::new(stride as usize * height as usize, shm)
+                    .expect("Failed to create pool");
+
+                current.pool = Some(pool);
 
                 let (buffer, _canvas) = current
                     .pool
@@ -64,8 +70,8 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
             }
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
                 trace!("data:{}, frame ready", data);
+                proxy.destroy();
                 app.wayland_ctx.scm.copy_ready += 1;
-                // app.wayland_ctx.frames_ready += 1;
             }
             zwlr_screencopy_frame_v1::Event::Failed => {
                 warn!("buffer copy error");
@@ -76,7 +82,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
     }
 }
 
-// NOTE: unused
+// NOTE: ne event
 #[allow(unused_variables)]
 impl Dispatch<zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, ()> for FoamShot {
     fn event(

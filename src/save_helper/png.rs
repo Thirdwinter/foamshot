@@ -1,4 +1,3 @@
-use crate::notify;
 use crate::wayland_ctx::WaylandCtx;
 use log::warn;
 use std::io::Write;
@@ -31,10 +30,6 @@ pub fn save_to_png(wl_ctx: &mut WaylandCtx) -> Result<(), Box<dyn std::error::Er
         .map_err(|e| format!("写入PNG失败: {}", e))?;
 
     file.flush().map_err(|e| format!("刷新文件失败: {}", e))?;
-    notify::send(
-        notify::NotificationLevel::Info,
-        format!("Image saved in {}", output_path.clone().display()),
-    );
 
     Ok(())
 }
