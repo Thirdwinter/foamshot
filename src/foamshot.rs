@@ -5,7 +5,7 @@ use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
 use crate::{
     action::{self, Action, IsFreeze},
     config::{FoamConfig, ImageType},
-    notify::{self},
+    notify::{self, NotificationLevel},
     save_helper, wayland_ctx,
 };
 
@@ -67,30 +67,26 @@ pub fn run_main_loop() {
             }
             Action::Exit => {
                 shot_foam.wayland_ctx.config = FoamConfig::new();
-                for (_i, v) in shot_foam.wayland_ctx.foam_outputs.as_ref().unwrap() {
-                    debug!("{:?}", v.subrect)
-                }
-                // shot_foam.wayland_ctx.generate_sub_rects();
-                // shot_foam.wayland_ctx.before_output_collect_canvas();
                 if !shot_foam.wayland_ctx.current_freeze {
                     shot_foam.wait_freeze(&mut event_queue);
                 }
                 match shot_foam.wayland_ctx.config.image_type {
                     ImageType::Png => {
                         if let Err(e) = save_helper::save_to_png(&mut shot_foam.wayland_ctx) {
-                            notify::send(notify::NotificationLevel::Error, "save to png error");
+                            shot_foam.send_error("image saved error");
                             log::error!("save to png error: {}", e);
                         }
                         save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx).unwrap();
                     }
                     ImageType::Jpg => {
                         if let Err(e) = save_helper::save_to_jpg(&mut shot_foam.wayland_ctx, 100) {
-                            notify::send(notify::NotificationLevel::Error, "save to jpg error");
+                            shot_foam.send_error("image saved error");
                             log::error!("save to jpg error: {}", e);
                         }
                         save_helper::save_to_wl_clipboard(&mut shot_foam.wayland_ctx).ok();
                     }
                 }
+                shot_foam.send_save_info();
 
                 std::process::exit(0)
             }
@@ -130,7 +126,7 @@ impl FoamShot {
                 Ok(_) => {}
                 Err(e) => {
                     error!("error in wait_freeze: {}", e);
-                    notify::send(notify::NotificationLevel::Error, "error foamshot exit");
+                    self.send_error("error about wait screencopy");
                     std::process::exit(0)
                 }
             }
@@ -162,11 +158,46 @@ impl FoamShot {
     pub fn check_ok(&self) {
         // check screencopy manager exists
         if self.wayland_ctx.scm.manager.is_none() {
-            notify::send(
-                notify::NotificationLevel::Error,
-                "this compositor unsupported zwl screencopy, foamshot will be exit",
-            );
+            self.send_error("this compositor unsupported zwl screencopy, foamshot will be exit");
             std::process::exit(1);
         }
+    }
+
+    pub fn send_save_info(&self) {
+        notify::send(
+            NotificationLevel::Info,
+            "image_saved",
+            format!(
+                "Image saved in {}",
+                self.wayland_ctx.config.output_path.clone().display()
+            ),
+            self.wayland_ctx
+                .config
+                .output_path
+                .to_str()
+                .unwrap()
+                .to_string(),
+            self.wayland_ctx.config.allow_notify,
+        );
+    }
+
+    pub fn send_error(&self, body: &str) {
+        notify::send(
+            NotificationLevel::Error,
+            "foamshot error",
+            body,
+            "dialog-error",
+            self.wayland_ctx.config.allow_notify,
+        );
+    }
+
+    pub fn send_warn(&self, body: &str) {
+        notify::send(
+            NotificationLevel::Warn,
+            "foamshot warn",
+            body,
+            "dialog-warning",
+            self.wayland_ctx.config.allow_notify,
+        );
     }
 }

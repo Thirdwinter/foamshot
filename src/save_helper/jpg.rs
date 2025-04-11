@@ -1,4 +1,3 @@
-use crate::notify;
 use crate::wayland_ctx::WaylandCtx;
 use image::{ImageBuffer, Rgb};
 use log::warn;
@@ -70,10 +69,6 @@ pub fn save_to_jpg(wl_ctx: &mut WaylandCtx, quality: u8) -> Result<(), Box<dyn s
     output_file
         .flush()
         .map_err(|e| format!("刷新文件失败: {}", e))?;
-    notify::send(
-        notify::NotificationLevel::Info,
-        format!("Image saved in {}", output_path.clone().display()),
-    );
 
     Ok(())
 }
