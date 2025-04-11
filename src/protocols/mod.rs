@@ -394,6 +394,10 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
         qh: &wayland_client::QueueHandle<Self>,
     ) {
         match event {
+            wl_output::Event::Scale { factor } => {
+                let mut foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
+                foam_output.as_mut().unwrap().scale = factor.into()
+            }
             wl_output::Event::Mode {
                 flags: _,
                 width,
@@ -512,11 +516,8 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        match event {
-            wl_callback::Event::Done { callback_data } => {
-                app.wayland_ctx.update_select_region();
-            }
-            _ => {}
+        if let wl_callback::Event::Done { callback_data } = event {
+            app.wayland_ctx.update_select_region();
         }
     }
 }

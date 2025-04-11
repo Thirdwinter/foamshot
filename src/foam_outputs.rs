@@ -32,7 +32,7 @@ pub struct FoamOutput {
     pub logical_width: i32,
     pub logical_height: i32,
     /// 显示器缩放分数，默认设置为1
-    pub scale: i32,
+    pub scale: f64,
     pub viewport: Option<wp_viewport::WpViewport>,
 
     pub base_buffer: Option<Buffer>,
@@ -52,7 +52,7 @@ impl FoamOutput {
         Self {
             id,
             output: Some(output),
-            scale: 1,
+            scale: 1.0,
             name: "unnamed".to_string(),
             pool: Some(pool),
             ..Default::default()
@@ -98,7 +98,7 @@ impl FoamOutput {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_mut().expect("Missing surfaces");
 
-        surface.set_buffer_scale(self.scale);
+        surface.set_buffer_scale(self.scale.round() as i32);
         self.viewport = Some(viewporter.get_viewport(surface, qh, id));
 
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
@@ -118,6 +118,7 @@ impl FoamOutput {
 
         self.layer_surface = Some(layer);
         surface.damage(0, 0, w, h);
+        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
     }
 
@@ -129,10 +130,11 @@ impl FoamOutput {
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         canvas.copy_from_slice(base_canvas);
 
-        draw_base(canvas, w, h);
+        draw_base(canvas, w, h, self.scale, self.scale);
 
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
+        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
         self.base_buffer = Some(buffer)
     }
@@ -144,6 +146,7 @@ impl FoamOutput {
         canvas.fill(0);
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
+        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
         self.base_buffer = Some(buffer)
     }
@@ -153,7 +156,7 @@ impl FoamOutput {
         let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         canvas.fill(0);
-        draw_base(canvas, w, h);
+        draw_base(canvas, w, h, self.scale, self.scale);
 
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
@@ -189,6 +192,7 @@ impl FoamOutput {
         };
 
         let cr = Context::new(&cairo_surface).unwrap();
+        cr.scale(self.scale, self.scale);
 
         // 获取Cairo表面尺寸
         let surface_width = cairo_surface.width() as f64;
@@ -255,6 +259,7 @@ impl FoamOutput {
         surface.damage_buffer(0, 0, w, h);
 
         // 提交 surface
+        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
         self.need_redraw = false;
         self.base_buffer = Some(buffer)

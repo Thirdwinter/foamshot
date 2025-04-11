@@ -192,6 +192,10 @@ impl WaylandCtx {
                 .as_mut()
                 .unwrap()
                 .frame(self.qh.as_ref().unwrap(), m.id);
+            m.surface
+                .as_mut()
+                .unwrap()
+                .set_buffer_scale(m.scale.round() as i32);
             m.surface.as_mut().unwrap().commit();
         }
     }
