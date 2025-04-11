@@ -13,7 +13,7 @@ pub struct FoamShot {
     /// foamshot wayland context
     pub wayland_ctx: wayland_ctx::WaylandCtx,
 
-    pub mode: action::Action,
+    pub action: action::Action,
 }
 
 /// run
@@ -41,7 +41,7 @@ pub fn run_main_loop() {
 
     loop {
         event_queue.blocking_dispatch(&mut shot_foam).unwrap();
-        match &shot_foam.mode {
+        match &shot_foam.action {
             Action::Init => {}
             Action::WaitPointerPress => {}
             Action::ToggleFreeze(state) => {
@@ -64,7 +64,7 @@ pub fn run_main_loop() {
                         shot_foam.toggle_freeze(&mut event_queue);
                     }
                 }
-                shot_foam.mode = Action::WaitPointerPress
+                shot_foam.action = Action::WaitPointerPress
             }
             Action::OnDraw => {
                 // shot_foam.wayland_ctx.update_select_region();
@@ -106,7 +106,7 @@ impl FoamShot {
     pub fn new(shm: Shm, qh: wayland_client::QueueHandle<FoamShot>) -> FoamShot {
         Self {
             wayland_ctx: wayland_ctx::WaylandCtx::new(shm, qh),
-            mode: Action::default(),
+            action: Action::default(),
         }
     }
 
@@ -116,8 +116,8 @@ impl FoamShot {
         self.check_ok();
 
         // NOTE: 先确保屏幕为正常状态
-        if self.mode == Action::ToggleFreeze(IsFreeze::UnFreeze)
-            || self.mode == Action::ToggleFreeze(IsFreeze::NewFrameFreeze)
+        if self.action == Action::ToggleFreeze(IsFreeze::UnFreeze)
+            || self.action == Action::ToggleFreeze(IsFreeze::NewFrameFreeze)
         {
             self.wayland_ctx.unset_freeze();
         }

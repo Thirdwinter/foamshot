@@ -75,7 +75,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
             }
             zwlr_screencopy_frame_v1::Event::Failed => {
                 warn!("buffer copy error");
-                app.mode = Action::Exit;
+                app.action = Action::Exit;
             }
             _ => (),
         }

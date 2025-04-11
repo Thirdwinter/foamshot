@@ -26,7 +26,7 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                 debug!("Configure {}: {}x{}", data, width, height);
                 proxy.ack_configure(serial);
                 proxy.set_size(width, height);
-                if app.mode == Action::Init {
+                if app.action == Action::Init {
                     debug!("layer show");
                     app.wayland_ctx.attach_with_udata(*data);
                     app.wayland_ctx.layer_ready += 1;
@@ -34,7 +34,7 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                         == app.wayland_ctx.foam_outputs.as_ref().unwrap().len()
                     {
                         app.wayland_ctx.current_freeze = app.wayland_ctx.config.freeze;
-                        app.mode = Action::WaitPointerPress;
+                        app.action = Action::WaitPointerPress;
 
                         app.wayland_ctx.layer_ready = 0;
                     }
