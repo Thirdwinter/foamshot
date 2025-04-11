@@ -46,7 +46,7 @@ pub fn run_main_loop() {
             Action::WaitPointerPress => {}
             Action::ToggleFreeze(state) => {
                 match state {
-                    IsFreeze::Freeze => {
+                    IsFreeze::NewFrameFreeze => {
                         debug!("next is freeze");
 
                         // 进行屏幕copy 通过计数器等待所有ready完成
@@ -59,11 +59,18 @@ pub fn run_main_loop() {
 
                         shot_foam.toggle_freeze(&mut event_queue);
                     }
+                    IsFreeze::OldFrameFreeze => {
+                        // 发送下一帧，重新附加buffer
+                        shot_foam.toggle_freeze(&mut event_queue);
+                    }
                 }
                 shot_foam.mode = Action::WaitPointerPress
             }
             Action::OnDraw => {
                 // shot_foam.wayland_ctx.update_select_region();
+            }
+            Action::OnEdit => {
+                debug!("OnEdit")
             }
             Action::Exit => {
                 shot_foam.wayland_ctx.config = FoamConfig::new();
@@ -110,7 +117,7 @@ impl FoamShot {
 
         // NOTE: 先确保屏幕为正常状态
         if self.mode == Action::ToggleFreeze(IsFreeze::UnFreeze)
-            || self.mode == Action::ToggleFreeze(IsFreeze::Freeze)
+            || self.mode == Action::ToggleFreeze(IsFreeze::NewFrameFreeze)
         {
             self.wayland_ctx.unset_freeze();
         }

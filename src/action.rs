@@ -7,12 +7,13 @@ pub enum Action {
     WaitPointerPress,
     ToggleFreeze(IsFreeze),
     OnDraw,
+    OnEdit,
     Exit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
 pub enum IsFreeze {
-    Freeze,
+    NewFrameFreeze,
+    OldFrameFreeze,
     UnFreeze,
 }
-
