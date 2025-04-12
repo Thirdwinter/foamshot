@@ -23,12 +23,50 @@ impl SelectRect {
         }
     }
     pub fn edit(&mut self, start_pos: (f64, f64), end_pos: (f64, f64), act: Action) -> Action {
-        if act != Action::OnEdit(EditAction::Move) {
+        // 检查是否需要重置移动状态：如果不是移动操作，或者是新的移动开始（start_pos 变化）
+        let should_reset = match act {
+            Action::OnEdit(EditAction::Move) => {
+                if let Some(origin) = self.move_origin {
+                    // 如果是新的移动操作（起始位置不同）
+                    start_pos != origin
+                } else {
+                    true
+                }
+            }
+            _ => true,
+        };
+
+        if should_reset {
             self.move_origin = None;
             self.rect_origin = None;
         }
         match act {
             Action::OnEdit(edit_action) => match edit_action {
+                EditAction::Move => {
+                    // 首次开始移动时，记录初始状态
+                    if self.move_origin.is_none() {
+                        self.move_origin = Some(start_pos);
+                        self.rect_origin = Some((self.sx, self.sy, self.ex, self.ey));
+                    }
+
+                    // 基于初始状态和当前鼠标位置计算新位置
+                    if let (Some(origin_pos), Some(origin_rect)) =
+                        (self.move_origin, self.rect_origin)
+                    {
+                        // 计算相对于拖动开始位置的总位移
+                        let dx = (end_pos.0 - origin_pos.0) as i32;
+                        let dy = (end_pos.1 - origin_pos.1) as i32;
+
+                        // 基于初始矩形位置计算新位置
+                        self.sx = origin_rect.0 + dx;
+                        self.sy = origin_rect.1 + dy;
+                        self.ex = origin_rect.2 + dx;
+                        self.ey = origin_rect.3 + dy;
+                    }
+
+                    return Action::OnEdit(EditAction::Move);
+                }
+
                 EditAction::Left => {
                     self.sx = end_pos.0 as i32;
                     if self.sx > self.ex {
@@ -113,29 +151,7 @@ impl SelectRect {
                     }
                     return act;
                 }
-                EditAction::Move => {
-                    // 初始化拖动状态
-                    if self.move_origin.is_none() {
-                        self.move_origin = Some(start_pos);
-                        self.rect_origin = Some((self.sx, self.sy, self.ex, self.ey));
-                    }
-
-                    // 计算基于初始状态的位移
-                    if let (Some((ox, oy)), Some((sx0, sy0, ex0, ey0))) =
-                        (self.move_origin, self.rect_origin)
-                    {
-                        let dx = (end_pos.0 - ox) as i32;
-                        let dy = (end_pos.1 - oy) as i32;
-
-                        // 更新坐标保持矩形完整性
-                        self.sx = sx0 + dx;
-                        self.sy = sy0 + dy;
-                        self.ex = ex0 + dx;
-                        self.ey = ey0 + dy;
-                    }
-                    return act;
-                }
-                _ => act, // EditAction::None => Action::OnEdit(EditAction::None),
+                _ => act,
             },
             _ => {
                 return Action::OnEdit(EditAction::None);

@@ -38,7 +38,7 @@ pub struct WaylandCtx {
 
     pub current_index: Option<usize>,
     /// FIX: 不符合预期的pointer事件，用于记录其中的 surface 索引
-    pub unknow_index: Option<usize>,
+    pub unknown_index: Option<usize>,
 
     pub current_freeze: bool,
 
