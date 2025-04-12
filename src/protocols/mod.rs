@@ -32,7 +32,7 @@ use wayland_protocols_wlr::{
 };
 
 use crate::{
-    action::{Action, IsFreeze},
+    action::{Action, EditAction, IsFreeze},
     foam_outputs,
     foamshot::FoamShot,
     zwlr_screencopy_mode::ZwlrScreencopyMode,
@@ -238,11 +238,13 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 {
                     debug!("surface enter output:{} x:{}, y:{}", foam_output.name, x, y);
 
+                    // 确定surface之后，可以提取处理full_screen
                     if app.wayland_ctx.config.full_screen {
                         app.wayland_ctx.set_one_max(*a.unwrap());
                         app.action = Action::Exit;
                         return;
                     }
+
                     app.wayland_ctx.current_index = Some(*a.unwrap());
                     match app.wayland_ctx.pointer_helper.start_index {
                         Some(_) => (),
@@ -250,10 +252,13 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             app.wayland_ctx.pointer_helper.start_index = Some(*a.unwrap());
                         }
                     }
-                    match app.wayland_ctx.pointer_helper.current_pos {
+                    match app.wayland_ctx.pointer_helper.g_current_pos {
                         Some(_) => (),
                         None => {
-                            app.wayland_ctx.pointer_helper.current_pos = Some((x, y));
+                            app.wayland_ctx.pointer_helper.g_current_pos = Some((
+                                x + foam_output.global_x as f64,
+                                y + foam_output.global_y as f64,
+                            ));
                         }
                     }
                 }
@@ -268,17 +273,43 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     match state {
                         wl_pointer::ButtonState::Pressed => {
                             app.wayland_ctx.pointer_helper.is_pressing = true;
+                            match app.action {
+                                Action::WaitPointerPress => {
+                                    app.wayland_ctx.pointer_helper.start_index =
+                                        app.wayland_ctx.current_index;
 
-                            if app.action == Action::WaitPointerPress {
-                                app.wayland_ctx.pointer_helper.start_index =
-                                    app.wayland_ctx.current_index;
+                                    app.wayland_ctx.pointer_helper.g_start_pos =
+                                        app.wayland_ctx.pointer_helper.g_current_pos;
 
-                                app.wayland_ctx.pointer_helper.start_pos =
-                                    app.wayland_ctx.pointer_helper.current_pos;
+                                    app.wayland_ctx.generate_rects_and_send_frame();
 
-                                app.wayland_ctx.generate_sub_rects();
+                                    app.action = Action::OnDraw;
+                                }
+                                Action::OnEdit(EditAction::None) => {
+                                    app.wayland_ctx.pointer_helper.g_start_pos =
+                                        app.wayland_ctx.pointer_helper.g_current_pos;
 
-                                app.action = Action::OnDraw;
+                                    app.action = Action::OnEdit(
+                                        app.wayland_ctx.global_rect.as_ref().unwrap().hit_region(
+                                            app.wayland_ctx
+                                                .pointer_helper
+                                                .g_current_pos
+                                                .as_ref()
+                                                .unwrap()
+                                                .0
+                                                as i32,
+                                            app.wayland_ctx
+                                                .pointer_helper
+                                                .g_current_pos
+                                                .as_ref()
+                                                .unwrap()
+                                                .1
+                                                as i32,
+                                            15,
+                                        ),
+                                    )
+                                }
+                                _ => {}
                             }
                         }
                         wl_pointer::ButtonState::Released => {
@@ -287,14 +318,14 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                                 app.wayland_ctx.pointer_helper.end_index =
                                     app.wayland_ctx.current_index;
 
-                                app.wayland_ctx.pointer_helper.end_pos =
-                                    app.wayland_ctx.pointer_helper.current_pos;
+                                app.wayland_ctx.pointer_helper.g_end_pos =
+                                    app.wayland_ctx.pointer_helper.g_current_pos;
                             }
 
                             if !app.wayland_ctx.config.edit {
                                 app.action = Action::Exit;
                             } else {
-                                app.action = Action::OnEdit
+                                app.action = Action::OnEdit(EditAction::None)
                             }
                         }
                         _ => (),
@@ -331,10 +362,62 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     surface_y,
                 );
 
-                app.wayland_ctx.pointer_helper.current_pos = Some((x, y));
-                if app.action == Action::OnDraw {
-                    // TODO:
-                    app.wayland_ctx.generate_sub_rects();
+                app.wayland_ctx.pointer_helper.g_current_pos = Some((
+                    x + start_output.global_x as f64,
+                    y + start_output.global_y as f64,
+                ));
+                match app.action {
+                    Action::OnDraw => {
+                        // TODO:
+                        app.wayland_ctx.generate_rects_and_send_frame();
+                        return;
+                    }
+                    Action::OnEdit(a) => match a {
+                        EditAction::None => {
+                            app.wayland_ctx
+                                .set_cursor_shape(
+                                    0,
+                                    app.wayland_ctx
+                                        .global_rect
+                                        .as_ref()
+                                        .unwrap()
+                                        .hit_region(
+                                            app.wayland_ctx
+                                                .pointer_helper
+                                                .g_current_pos
+                                                .as_ref()
+                                                .unwrap()
+                                                .0
+                                                as i32,
+                                            app.wayland_ctx
+                                                .pointer_helper
+                                                .g_current_pos
+                                                .as_ref()
+                                                .unwrap()
+                                                .1
+                                                as i32,
+                                            15,
+                                        )
+                                        .to_cursor_shape(),
+                                    proxy,
+                                )
+                                .ok();
+
+                            return;
+                        }
+                        _ => {
+                            app.wayland_ctx
+                                .set_cursor_shape(0, a.to_cursor_shape(), proxy)
+                                .ok();
+                            app.action = app.wayland_ctx.global_rect.as_mut().unwrap().edit(
+                                app.wayland_ctx.pointer_helper.g_start_pos.unwrap(),
+                                app.wayland_ctx.pointer_helper.g_current_pos.unwrap(),
+                                app.action,
+                            );
+                            app.wayland_ctx.process_subrects_and_send();
+                        }
+                    },
+                    _ => {}
                 }
             }
             _ => (),
@@ -352,10 +435,10 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        // 定义常量代替魔法数字
         const KEY_F: u32 = 33;
         const KEY_ESC: u32 = 1;
         const KEY_A: u32 = 30;
+        const KEY_S: u32 = 31;
 
         // 使用模式匹配替代多重if嵌套
         if let wl_keyboard::Event::Key {
@@ -372,8 +455,19 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                     app.wayland_ctx.set_one_max(current_output.unwrap());
                     app.action = Action::Exit
                 }
+                KEY_S => match app.action {
+                    Action::WaitPointerPress => {
+                        return;
+                    }
+                    Action::Init => {
+                        return;
+                    }
+                    Action::Exit => {
+                        return;
+                    }
+                    _ => app.action = Action::Exit,
+                },
                 KEY_F => {
-                    // 使用更简洁的状态切换方式
                     app.wayland_ctx.current_freeze = !app.wayland_ctx.current_freeze;
                     app.action = if app.wayland_ctx.current_freeze {
                         Action::ToggleFreeze(IsFreeze::NewFrameFreeze)
@@ -381,18 +475,18 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                         Action::ToggleFreeze(IsFreeze::UnFreeze)
                     };
                 }
-                KEY_ESC => {
-                    // 使用更明确的退出方式
-                    if app.action == Action::OnEdit {
+                KEY_ESC => match app.action {
+                    Action::OnEdit(a) => {
                         app.action = if app.wayland_ctx.current_freeze {
                             Action::ToggleFreeze(IsFreeze::OldFrameFreeze)
                         } else {
                             Action::ToggleFreeze(IsFreeze::UnFreeze)
                         };
-                    } else {
+                    }
+                    _ => {
                         std::process::exit(0);
                     }
-                }
+                },
                 _ => {}
             }
         }
@@ -533,8 +627,14 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
         qh: &wayland_client::QueueHandle<Self>,
     ) {
         if let wl_callback::Event::Done { callback_data } = event {
-            if app.action == Action::OnDraw {
-                app.wayland_ctx.update_select_region();
+            match app.action {
+                Action::OnDraw => {
+                    app.wayland_ctx.update_select_region();
+                }
+                Action::OnEdit(a) => {
+                    app.wayland_ctx.update_select_region();
+                }
+                _ => {}
             }
         }
     }

@@ -15,9 +15,9 @@ pub struct PointerHelper {
     pub cursor_shape_manager: Option<(wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, u32)>,
     pub cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
 
-    pub current_pos: Option<(f64, f64)>,
-    pub start_pos: Option<(f64, f64)>,
-    pub end_pos: Option<(f64, f64)>,
+    pub g_current_pos: Option<(f64, f64)>,
+    pub g_start_pos: Option<(f64, f64)>,
+    pub g_end_pos: Option<(f64, f64)>,
 
     /// 记录index
     pub start_index: Option<usize>,

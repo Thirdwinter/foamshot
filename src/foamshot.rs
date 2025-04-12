@@ -69,9 +69,7 @@ pub fn run_main_loop() {
             Action::OnDraw => {
                 // shot_foam.wayland_ctx.update_select_region();
             }
-            Action::OnEdit => {
-                debug!("OnEdit")
-            }
+            Action::OnEdit(_a) => {}
             Action::Exit => {
                 shot_foam.wayland_ctx.config = FoamConfig::new();
                 if !shot_foam.wayland_ctx.current_freeze {

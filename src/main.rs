@@ -7,6 +7,7 @@ mod notify;
 mod pointer_helper;
 mod protocols;
 mod save_helper;
+mod select_rect;
 mod wayland_ctx;
 mod zwlr_screencopy_mode;
 

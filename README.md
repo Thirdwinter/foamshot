@@ -27,19 +27,19 @@ Usage: foamshot [OPTIONS]
 
 Options:
   -p, --path <PATH>  The directory path where the output file is located. The default is the XDG user image path
-  -n, --name <NAME>  Output file name, supports time formatting placeholders (such as %Y, %m, %d, %H, %M, %S) [default: foamshot-2025
--04-09-21-11-23.png]
+  -n, --name <NAME>  Output file name, supports time formatting placeholders (such as %Y, %m, %d, %H, %M, %S) [default: foamshot-2025-04-12-20-44-35.png]
       --show-cursor  Whether to display the mouse when taking a screenshot. The default value is false
       --no-copy      Whether to automatically copy the screenshot to the clipboard, requires wl-copy, default is false
       --no-freeze    Whether to freeze the screen before taking a screenshot, the default is false
       --full-screen  Whether to skip automatic full screen capture in interactive mode, the default value is false
-      --edit         TODO: Whether to enter edit mode after taking a screenshot, the default is false
+      --edit         Whether to enter edit mode after taking a screenshot, the default is false
+      --no-notify    disable desktop notify, the default is false
   -h, --help         Print help
   -V, --version      Print version
 ```
 * When the screen is waiting for the mouse to be pressed, press the `a` key to quickly capture the full screen, press the `f` key to toggle freeze state.
-* Edit mode is under development.
-* in hyprland,you can  `bind = $mainMod, A, exec, foamshot -p $HOME/Pictures/Screenshots/ -n foam_shot-%Y-%m-%d_%H-%M-%S.png`
+* In edit mode, you can resize selectbox, press the `s` key to apply and save.
+* In hyprland,you can  `bind = $mainMod, A, exec, foamshot -p $HOME/Pictures/Screenshots/ -n foam_shot-%Y-%m-%d_%H-%M-%S.png`
 
 ---
 ## Roadmap

@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    collections::HashMap,
-};
+use std::collections::HashMap;
 
 use log::{debug, error};
 use smithay_client_toolkit::shm::{self};
@@ -19,7 +16,8 @@ use wayland_protocols::{
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 
 use crate::{
-    config, foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper, zwlr_screencopy_mode,
+    config, foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper,
+    select_rect::SelectRect, zwlr_screencopy_mode,
 };
 
 #[derive(Default)]
@@ -53,6 +51,7 @@ pub struct WaylandCtx {
 
     pub config: config::FoamConfig,
     pub scm: zwlr_screencopy_mode::ZwlrScreencopyMode,
+    pub global_rect: Option<SelectRect>,
 }
 
 impl WaylandCtx {
@@ -150,54 +149,76 @@ impl WaylandCtx {
             );
         }
     }
+    pub fn compute_global_rect(&mut self) {
+        // 解包起始位置和当前位置
+        let (start_x, start_y) = self.pointer_helper.g_start_pos.unwrap();
+        let (end_x, end_y) = self.pointer_helper.g_current_pos.unwrap();
+
+        // 转换到全局坐标系
+        let (start_gx, start_gy) = (start_x as i32, start_y as i32);
+        let (end_gx, end_gy) = (end_x as i32, end_y as i32);
+
+        // 计算父矩形边界
+        let rect = SelectRect::new(
+            start_gx.min(end_gx),
+            start_gy.min(end_gy),
+            start_gx.max(end_gx),
+            start_gy.max(end_gy),
+        );
+
+        self.global_rect = Some(rect);
+    }
+    pub fn process_subrects_and_send(&mut self) {
+        let foam_outputs = self.foam_outputs.as_mut().unwrap();
+        let rect = self.global_rect.as_ref().unwrap();
+
+        let SelectRect {
+            sx: min_x,
+            sy: min_y,
+            ex: max_x,
+            ey: max_y,
+            ..
+        } = *rect;
+
+        for output in foam_outputs.values_mut() {
+            // 计算与当前输出的交集区域
+            let intersect_left = output.global_x.max(min_x);
+            let intersect_top = output.global_y.max(min_y);
+            let intersect_right = (output.global_x + output.width).min(max_x);
+            let intersect_bottom = (output.global_y + output.height).min(max_y);
+
+            // 判断有效交集区域
+            if intersect_left < intersect_right && intersect_top < intersect_bottom {
+                // 计算相对于输出的局部坐标
+                let local_x = intersect_left - output.global_x;
+                let local_y = intersect_top - output.global_y;
+                let width = intersect_right - intersect_left;
+                let height = intersect_bottom - intersect_top;
+
+                // 更新输出状态
+                output.new_subrect(local_x, local_y, width, height);
+                output.need_redraw = true;
+
+                // 提交surface更新
+                if let Some(surface) = &mut output.surface {
+                    let qh = self.qh.as_ref().unwrap();
+                    surface.frame(qh, output.id);
+                    surface.set_buffer_scale(output.scale.round() as i32);
+                    surface.commit();
+                }
+            } else {
+                // 清理无效区域
+                output.subrect = None;
+                // TODO: 这里应该不用显示设置为false
+                output.need_redraw = false;
+            }
+        }
+    }
 
     /// 在鼠标按下和拖动时候被调用，为每个output生成子矩形，如果成功生成，对应output标记为需要重绘, 且surface将发送帧回调
-    pub fn generate_sub_rects(&mut self) {
-        let foam_outputs = self.foam_outputs.as_mut().unwrap();
-        let start_index = self.pointer_helper.start_index.unwrap();
-        let (start_x, start_y) = self.pointer_helper.start_pos.unwrap();
-        let (end_x, end_y) = self.pointer_helper.current_pos.unwrap();
-        let start_output = foam_outputs.get_mut(&start_index).unwrap();
-        let (start_gx, start_gy, end_gx, end_gy) = (
-            start_output.global_x + start_x as i32,
-            start_output.global_y + start_y as i32,
-            start_output.global_x + end_x as i32,
-            start_output.global_y + end_y as i32,
-        );
-        // 计算矩形的全局边界
-        let rect_min_x = min(start_gx, end_gx);
-        let rect_min_y = min(start_gy, end_gy);
-        let rect_max_x = max(start_gx, end_gx);
-        let rect_max_y = max(start_gy, end_gy);
-
-        for m in foam_outputs.values_mut() {
-            let intersection_min_x = max(m.global_x, rect_min_x);
-            let intersection_min_y = max(m.global_y, rect_min_y);
-            let intersection_max_x = min(m.global_x + m.width, rect_max_x);
-            let intersection_max_y = min(m.global_y + m.height, rect_max_y);
-
-            // Ensure that the intersection is valid
-            if intersection_min_x < intersection_max_x && intersection_min_y < intersection_max_y {
-                let relative_min_x = intersection_min_x - m.global_x;
-                let relative_min_y = intersection_min_y - m.global_y;
-                let width = intersection_max_x - intersection_min_x;
-                let height = intersection_max_y - intersection_min_y;
-                m.new_subrect(relative_min_x, relative_min_y, width, height);
-                m.need_redraw = true;
-            } else {
-                m.subrect = None;
-                m.need_redraw = false
-            }
-            m.surface
-                .as_mut()
-                .unwrap()
-                .frame(self.qh.as_ref().unwrap(), m.id);
-            m.surface
-                .as_mut()
-                .unwrap()
-                .set_buffer_scale(m.scale.round() as i32);
-            m.surface.as_mut().unwrap().commit();
-        }
+    pub fn generate_rects_and_send_frame(&mut self) {
+        self.compute_global_rect();
+        self.process_subrects_and_send();
     }
 
     /// 在wl_callback中被调用，为需要重绘的输出更新下一帧

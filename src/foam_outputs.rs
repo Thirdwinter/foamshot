@@ -11,7 +11,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
 };
 
-use crate::{cairo_render::draw_base, foamshot::FoamShot};
+use crate::{cairo_render::draw_base, foamshot::FoamShot, select_rect::SubRect};
 
 /// NOTE: 为物理显示器做的抽象，包含其基础信息
 #[derive(Default, Debug)]
@@ -263,25 +263,5 @@ impl FoamOutput {
         surface.commit();
         self.need_redraw = false;
         self.base_buffer = Some(buffer)
-    }
-}
-
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct SubRect {
-    pub monitor_id: usize,
-    pub relative_min_x: i32,
-    pub relative_min_y: i32,
-    pub width: i32,
-    pub height: i32,
-}
-impl SubRect {
-    pub fn new(id: usize, x: i32, y: i32, w: i32, h: i32) -> Self {
-        Self {
-            monitor_id: id,
-            relative_min_x: x,
-            relative_min_y: y,
-            width: w,
-            height: h,
-        }
     }
 }

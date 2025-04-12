@@ -31,7 +31,7 @@ struct CliArgs {
     #[arg(long, default_value_t = false)]
     full_screen: bool,
 
-    /// TODO: Whether to enter edit mode after taking a screenshot, the default is false
+    /// Whether to enter edit mode after taking a screenshot, the default is false
     #[arg(long, default_value_t = false)]
     edit: bool,
 
