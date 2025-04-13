@@ -197,9 +197,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
     ) {
         match event {
             wl_pointer::Event::Leave { serial, surface } => {
-                let _ = app
-                    .wayland_ctx
-                    .set_cursor_shape(serial, Shape::Default, proxy);
+                let _ = app.wayland_ctx.set_cursor_shape(Shape::Default, proxy);
             }
 
             wl_pointer::Event::Enter {
@@ -208,6 +206,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 surface_x,
                 surface_y,
             } => {
+                app.wayland_ctx.pointer_helper.serial = serial;
                 let surface_index = match surface.data::<usize>() {
                     Some(idx) => *idx,
                     None => {
@@ -218,10 +217,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 app.wayland_ctx.unknown_index = Some(surface_index);
 
                 // set cursor shape
-                if let Err(_) = app
-                    .wayland_ctx
-                    .set_cursor_shape(serial, Shape::Crosshair, proxy)
-                {
+                if let Err(_) = app.wayland_ctx.set_cursor_shape(Shape::Crosshair, proxy) {
                     app.send_warn("can not set cursor shape");
                 }
 
@@ -229,7 +225,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     .wayland_ctx
                     .foam_outputs
                     .as_ref()
-                    .and_then(|outputs| outputs.get(&surface_index))
+                    .and_then(|outputs| outputs.get(surface_index))
                 {
                     Some(output) => output,
                     None => {
@@ -360,7 +356,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 };
 
                 let (start_output, unknown_output) =
-                    match (outputs.get(&start_index), outputs.get(&unknown_index)) {
+                    match (outputs.get(start_index), outputs.get(unknown_index)) {
                         (Some(s), Some(u)) => (s, u),
                         _ => return,
                     };
@@ -382,37 +378,34 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     Action::OnDraw => {
                         app.wayland_ctx.generate_rects_and_send_frame();
                     }
-                    Action::OnEdit(edit_action) => match edit_action {
-                        // NOTE: 待编辑时候移动光标选择设置合适的形状
-                        EditAction::None => {
-                            if let Some(global_rect) = app.wayland_ctx.global_rect.as_ref() {
-                                let hit_region = global_rect.hit_region(
-                                    global_pos.0 as i32,
-                                    global_pos.1 as i32,
-                                    15,
-                                );
-                                let _ = app.wayland_ctx.set_cursor_shape(
-                                    0,
-                                    hit_region.to_cursor_shape(),
-                                    proxy,
-                                );
-                            }
-                        }
-                        _ => {
-                            let _ = app.wayland_ctx.set_cursor_shape(
-                                0,
-                                edit_action.to_cursor_shape(),
-                                proxy,
+                    Action::OnEdit(edit_action) => {
+                        if let Some(global_rect) = app.wayland_ctx.global_rect.as_ref() {
+                            let hit_region_act = global_rect.hit_region(
+                                global_pos.0 as i32,
+                                global_pos.1 as i32,
+                                15,
                             );
-                            if let (Some(start_pos), Some(global_rect)) = (
-                                app.wayland_ctx.pointer_helper.g_start_pos,
-                                app.wayland_ctx.global_rect.as_mut(),
-                            ) {
-                                app.action = global_rect.edit(start_pos, global_pos, app.action);
-                                app.wayland_ctx.process_subrects_and_send();
+                            let _ = app
+                                .wayland_ctx
+                                .set_cursor_shape(hit_region_act.to_cursor_shape(), proxy);
+                        }
+
+                        match edit_action {
+                            EditAction::None => {
+                                return;
+                            }
+                            _ => {
+                                if let (Some(start_pos), Some(global_rect)) = (
+                                    app.wayland_ctx.pointer_helper.g_start_pos,
+                                    app.wayland_ctx.global_rect.as_mut(),
+                                ) {
+                                    app.action =
+                                        global_rect.edit(start_pos, global_pos, app.action);
+                                    app.wayland_ctx.process_subrects_and_send();
+                                }
                             }
                         }
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -502,7 +495,12 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
     ) {
         match event {
             wl_output::Event::Scale { factor } => {
-                let mut foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
+                let mut foam_output = app
+                    .wayland_ctx
+                    .foam_outputs
+                    .as_mut()
+                    .unwrap()
+                    .get_mut(*data);
                 foam_output.as_mut().unwrap().scale = factor.into()
             }
             wl_output::Event::Mode {
@@ -511,7 +509,12 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                 height,
                 refresh: _,
             } => {
-                let mut foam_output = app.wayland_ctx.foam_outputs.as_mut().unwrap().get_mut(data);
+                let mut foam_output = app
+                    .wayland_ctx
+                    .foam_outputs
+                    .as_mut()
+                    .unwrap()
+                    .get_mut(*data);
                 foam_output.as_mut().unwrap().width = width;
                 foam_output.as_mut().unwrap().height = height;
                 // hs_insert(&mut app.wayland_ctx.widths, *data, width);
@@ -550,7 +553,7 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
                     .foam_outputs
                     .as_mut()
                     .unwrap()
-                    .get_mut(data)
+                    .get_mut(*data)
                     .unwrap();
                 foam_output.surface = Some(compositor.create_surface(qh, *data));
             }

@@ -147,7 +147,7 @@ impl FoamShot {
     pub fn toggle_freeze(&mut self, event_queue: &mut EventQueue<FoamShot>) {
         // 收集 Output ID
         let outputs: Vec<_> = if let Some(foam_outputs) = self.wayland_ctx.foam_outputs.as_mut() {
-            foam_outputs.iter().map(|(i, _)| *i).collect()
+            foam_outputs.iter().enumerate().map(|(i, _)| i).collect()
         } else {
             Vec::new()
         };

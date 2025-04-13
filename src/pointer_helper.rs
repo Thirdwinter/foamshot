@@ -25,6 +25,9 @@ pub struct PointerHelper {
 
     /// 是否在按下
     pub is_pressing: bool,
+
+    /// 最新的surface enter 序列号
+    pub serial: u32,
 }
 
 impl PointerHelper {
@@ -51,7 +54,6 @@ impl PointerHelper {
     pub fn set_cursor_shape(
         &mut self,
         qh: &QueueHandle<FoamShot>,
-        serial: u32,
         shape: wp_cursor_shape_device_v1::Shape,
         pointer: &wl_pointer::WlPointer,
     ) -> Result<(), Box<dyn Error>> {
@@ -62,7 +64,7 @@ impl PointerHelper {
         self.cursor_shape_device
             .as_ref()
             .unwrap()
-            .set_shape(serial, shape);
+            .set_shape(self.serial, shape);
 
         Ok(())
     }

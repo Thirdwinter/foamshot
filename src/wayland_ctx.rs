@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use log::{debug, error};
 use smithay_client_toolkit::shm::{self};
 use wayland_client::{
@@ -43,7 +41,7 @@ pub struct WaylandCtx {
     pub current_freeze: bool,
 
     /// 每个输出设备一个
-    pub foam_outputs: Option<HashMap<usize, foam_outputs::FoamOutput>>,
+    pub foam_outputs: Option<Vec<foam_outputs::FoamOutput>>,
     pub layer_ready: usize,
 
     /// 光标管理器
@@ -60,35 +58,35 @@ impl WaylandCtx {
         Self {
             qh: Some(qh),
             shm: Some(shm),
-            foam_outputs: Some(HashMap::new()),
+            foam_outputs: Some(Vec::new()),
             config: config::FoamConfig::new(),
             current_freeze: config.freeze,
             ..Default::default()
         }
     }
-    pub fn set_one_max(&mut self, traget: usize) {
-        for (i, v) in self.foam_outputs.as_mut().unwrap() {
-            if *i == traget {
-                v.max_rect();
+    pub fn set_one_max(&mut self, target: usize) {
+        // 遍历 Vec 的索引和元素
+        for (index, foam_output) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
+            if index == target {
+                foam_output.max_rect();
             } else {
-                v.clean_rect();
+                foam_output.clean_rect();
             }
         }
     }
 
     pub fn set_cursor_shape(
         &mut self,
-        serial: u32,
         shape: Shape,
         pointer: &wl_pointer::WlPointer,
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.pointer_helper
-            .set_cursor_shape(self.qh.as_ref().unwrap(), serial, shape, pointer)?;
+            .set_cursor_shape(self.qh.as_ref().unwrap(), shape, pointer)?;
         Ok(())
     }
 
     pub fn init_base_layers(&mut self) {
-        for (_, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+        for (_, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
             v.init_layer(
                 &self.layer_shell.as_ref().unwrap().0,
                 self.qh.as_ref().unwrap(),
@@ -99,7 +97,7 @@ impl WaylandCtx {
 
     /// 重新将缓冲区附加到surface，生成新的一帧，此处仅可附加 `freeze`/`no_freeze` 两种的内容
     pub fn attach_with_udata(&mut self, udata: usize) {
-        let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(&udata);
+        let mut foam_output = self.foam_outputs.as_mut().unwrap().get_mut(udata);
         if self.current_freeze {
             let base_canvas = self
                 .scm
@@ -116,7 +114,7 @@ impl WaylandCtx {
 
     /// 用一个空的buffer附加到surface，使屏幕恢复正常状态，用来 toggle freeze 前清空屏幕以便进行copy
     pub fn unset_freeze(&mut self) {
-        for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+        for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
             v.clean_attach();
         }
     }
@@ -140,12 +138,12 @@ impl WaylandCtx {
 
         // 遍历所有 outputs
         let foam_outputs = self.foam_outputs.as_mut().unwrap();
-        for (index, foam_output) in foam_outputs.iter_mut() {
+        for (index, foam_output) in foam_outputs.iter_mut().enumerate() {
             self.scm.request_copy_one(
                 self.config.cursor,
                 foam_output.output.as_ref().unwrap(),
                 qh,
-                *index,
+                index,
             );
         }
     }
@@ -180,7 +178,7 @@ impl WaylandCtx {
             ..
         } = *rect;
 
-        for output in foam_outputs.values_mut() {
+        for output in foam_outputs {
             // 计算与当前输出的交集区域
             let intersect_left = output.global_x.max(min_x);
             let intersect_top = output.global_y.max(min_y);
@@ -223,21 +221,20 @@ impl WaylandCtx {
 
     /// 在wl_callback中被调用，为需要重绘的输出更新下一帧
     pub fn update_select_region(&mut self) {
-        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
             if !v.need_redraw {
                 continue;
             }
-            let base_canvas = self.scm.base_canvas.as_mut().unwrap().get_mut(i).unwrap();
+            let base_canvas = self.scm.base_canvas.as_mut().unwrap().get_mut(&i).unwrap();
 
             v.update_select_subrect(base_canvas, self.current_freeze);
         }
     }
 
     pub fn store_copy_canvas(&mut self) {
-        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut() {
+        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
             let pool = v.pool.as_mut().unwrap();
-            self.scm.insert_canvas(*i, pool);
-            // v.store_canvas();
+            self.scm.insert_canvas(i, pool);
         }
     }
 }

@@ -20,7 +20,7 @@ pub(crate) fn calculate_capture_info(
     let mut active_info = Vec::new();
     let mut bounds: Option<(i32, i32, i32, i32)> = None;
 
-    for output in outputs.values() {
+    for output in outputs {
         let Some(rect) = &output.subrect else {
             continue;
         };
@@ -80,7 +80,7 @@ pub(crate) fn process_all_outputs(
 
     for &id in &capture_info.monitor_ids {
         let output = outputs
-            .get_mut(&id)
+            .get_mut(id)
             .ok_or_else(|| format!("显示器{}不存在", id))?;
 
         process_single_output(

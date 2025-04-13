@@ -33,7 +33,7 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                     .foam_outputs
                     .as_mut()
                     .unwrap()
-                    .get_mut(data)
+                    .get_mut(*data)
                     .unwrap();
                 let shm = app.wayland_ctx.shm.as_mut().unwrap();
                 let pool = SlotPool::new(stride as usize * height as usize, shm)

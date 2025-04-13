@@ -22,12 +22,15 @@ impl SelectRect {
             rect_origin: None,
         }
     }
+    /// NOTE: 需要返回新的Action
     pub fn edit(&mut self, start_pos: (f64, f64), end_pos: (f64, f64), act: Action) -> Action {
         // 检查是否需要重置移动状态：如果不是移动操作，或者是新的移动开始（start_pos 变化）
         let should_reset = match act {
             Action::OnEdit(EditAction::Move) => {
                 if let Some(origin) = self.move_origin {
                     // 如果是新的移动操作（起始位置不同）
+                    // start_pos 是每次光标按下确定，因此一次连续的按下-拖动-松开过程中不变，这里返回false
+                    // 如果重新按下，这里传入的start_pos会被更新，因此需要清除上一次移动的缓存信息
                     start_pos != origin
                 } else {
                     true

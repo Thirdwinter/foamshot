@@ -35,7 +35,7 @@ impl Dispatch<zxdg_output_v1::ZxdgOutputV1, usize> for FoamShot {
             .foam_outputs
             .as_mut()
             .unwrap()
-            .get_mut(data)
+            .get_mut(*data)
             .unwrap();
 
         match event {
