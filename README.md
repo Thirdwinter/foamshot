@@ -38,7 +38,7 @@ Options:
   -V, --version      Print version
 ```
 * When the screen is waiting for the mouse to be pressed, press the `a` key to quickly capture the full screen, press the `f` key to toggle freeze state.
-* In edit mode, you can resize selectbox, press the `s` key to apply and save.
+* In edit mode, you can resize selectbox, press the `s` key to apply and saved.
 * In hyprland,you can  `bind = $mainMod, A, exec, foamshot -p $HOME/Pictures/Screenshots/ -n foam_shot-%Y-%m-%d_%H-%M-%S.png`
 
 ---
