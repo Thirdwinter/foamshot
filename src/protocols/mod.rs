@@ -248,7 +248,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     // NOTE:  full screen mode handle
                     if app.wayland_ctx.config.full_screen {
                         app.wayland_ctx.set_one_max(surface_index);
-                        app.action = Action::Exit;
+                        app.action = Action::Output;
                         return;
                     }
 
@@ -323,7 +323,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             app.action = if app.wayland_ctx.config.edit {
                                 Action::OnEdit(EditAction::None)
                             } else {
-                                Action::Exit
+                                Action::Output
                             };
                         }
                         _ => (),
@@ -443,7 +443,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                 KEY_A => {
                     let current_output = app.wayland_ctx.current_index;
                     app.wayland_ctx.set_one_max(current_output.unwrap());
-                    app.action = Action::Exit
+                    app.action = Action::Output
                 }
                 KEY_S => match app.action {
                     Action::WaitPointerPress => {
@@ -455,7 +455,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                     Action::Exit => {
                         return;
                     }
-                    _ => app.action = Action::Exit,
+                    _ => app.action = Action::Output,
                 },
                 KEY_F => {
                     app.wayland_ctx.current_freeze = !app.wayland_ctx.current_freeze;
@@ -572,6 +572,17 @@ impl Dispatch<wl_surface::WlSurface, usize> for FoamShot {
         _conn: &wayland_client::Connection,
         _qh: &wayland_client::QueueHandle<Self>,
     ) {
+        match event {
+            wl_surface::Event::PreferredBufferTransform { transform } => {
+                if let Ok(t) = transform.into_result() {
+                    proxy.set_buffer_transform(t);
+                }
+            }
+            wl_surface::Event::PreferredBufferScale { factor } => {
+                proxy.set_buffer_scale(factor);
+            }
+            _ => {}
+        }
     }
 }
 

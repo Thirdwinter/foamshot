@@ -3,7 +3,7 @@ use crate::wayland_ctx::WaylandCtx;
 use std::error::Error;
 
 // 捕获区域信息结构体
-pub(crate) struct CaptureInfo {
+pub struct CaptureInfo {
     pub min_x: i32,
     pub min_y: i32,
     pub total_width: u32,
@@ -12,9 +12,7 @@ pub(crate) struct CaptureInfo {
 }
 
 /// 计算捕获区域信息
-pub(crate) fn calculate_capture_info(
-    wl_ctx: &WaylandCtx,
-) -> Result<Option<CaptureInfo>, Box<dyn Error>> {
+pub fn calculate_capture_info(wl_ctx: &WaylandCtx) -> Result<Option<CaptureInfo>, Box<dyn Error>> {
     let outputs = wl_ctx.foam_outputs.as_ref().ok_or("未初始化输出设备")?;
 
     let mut active_info = Vec::new();
@@ -57,7 +55,7 @@ pub(crate) fn calculate_capture_info(
 }
 
 /// 创建透明背景的最终画布
-pub(crate) fn create_final_surface(
+pub fn create_final_surface(
     width: u32,
     height: u32,
 ) -> Result<cairo::ImageSurface, Box<dyn Error>> {
@@ -71,7 +69,8 @@ pub(crate) fn create_final_surface(
 }
 
 /// 处理所有显示器输出
-pub(crate) fn process_all_outputs(
+/// 修改最终传入的final_surface
+pub fn process_all_outputs(
     wl_ctx: &mut WaylandCtx,
     capture_info: &CaptureInfo,
     final_surface: &cairo::ImageSurface,
@@ -101,7 +100,7 @@ pub(crate) fn process_all_outputs(
 }
 
 /// 处理单个显示器输出
-pub(crate) fn process_single_output(
+pub fn process_single_output(
     output: &mut FoamOutput,
     base_canvas: &mut [u8],
     capture_info: &CaptureInfo,
@@ -153,7 +152,7 @@ pub(crate) fn process_single_output(
 }
 
 /// 创建子区域surface
-pub(crate) fn create_sub_surface(
+pub fn create_sub_surface(
     canvas: &mut [u8],
     output_width: i32,
     x: i32,

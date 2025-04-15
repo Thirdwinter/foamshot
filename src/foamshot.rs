@@ -4,7 +4,7 @@ use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
 
 use crate::{
     action::{self, Action, IsFreeze},
-    config::{FoamConfig, ImageType},
+    config::ImageType,
     notify::{self, NotificationLevel},
     save_helper, wayland_ctx,
 };
@@ -66,12 +66,9 @@ pub fn run_main_loop() {
                 }
                 shot_foam.action = Action::WaitPointerPress
             }
-            Action::OnDraw => {
-                // shot_foam.wayland_ctx.update_select_region();
-            }
+            Action::OnDraw => {}
             Action::OnEdit(_a) => {}
-            Action::Exit => {
-                shot_foam.wayland_ctx.config = FoamConfig::new();
+            Action::Output => {
                 if !shot_foam.wayland_ctx.current_freeze {
                     shot_foam.wait_freeze(&mut event_queue);
                 }
@@ -92,9 +89,12 @@ pub fn run_main_loop() {
                     }
                 }
                 shot_foam.send_save_info();
-
-                std::process::exit(0)
+                shot_foam.action = Action::Exit
             }
+            Action::Pin => {
+                // TODO:
+            }
+            Action::Exit => std::process::exit(0),
         }
     }
 }

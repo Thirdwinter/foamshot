@@ -1,15 +1,16 @@
 use crate::wayland_ctx::WaylandCtx;
+use cairo::ImageSurface;
 use log::warn;
 use std::io::Write;
 
 use super::common::{calculate_capture_info, create_final_surface, process_all_outputs};
 
-pub fn save_to_png(wl_ctx: &mut WaylandCtx) -> Result<(), Box<dyn std::error::Error>> {
+pub fn save_to_png(wl_ctx: &mut WaylandCtx) -> Result<ImageSurface, Box<dyn std::error::Error>> {
     let capture_info = match calculate_capture_info(wl_ctx)? {
         Some(info) => info,
         None => {
             warn!("未找到有效截图区域");
-            return Ok(());
+            return Err("未找到有效截图区域".into());
         }
     };
 
@@ -31,5 +32,5 @@ pub fn save_to_png(wl_ctx: &mut WaylandCtx) -> Result<(), Box<dyn std::error::Er
 
     file.flush().map_err(|e| format!("刷新文件失败: {}", e))?;
 
-    Ok(())
+    Ok(final_surface)
 }
