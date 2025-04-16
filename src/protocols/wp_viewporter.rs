@@ -1,7 +1,7 @@
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
 
-use crate::foamshot::FoamShot;
+use crate::foamcore::FoamShot;
 
 // NOTE: ne events
 #[allow(unused_variables)]

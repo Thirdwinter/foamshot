@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
-use wayland_client::QueueHandle;
-use wayland_client::protocol::wl_output;
+use wayland_client::{QueueHandle, protocol::wl_output};
 use wayland_protocols_wlr::screencopy::v1::client::zwlr_screencopy_manager_v1;
 
-use crate::foamshot::FoamShot;
+use crate::foamcore::FoamShot;
 
 #[derive(Default)]
 /// NOTE: 统一管理所有输出的screen copy
@@ -42,8 +41,8 @@ impl ZwlrScreencopyMode {
 
     pub fn insert_buffer(&mut self, udata: usize, buffer: Buffer) -> Result<(), String> {
         match self.base_buffers.as_mut().unwrap().insert(udata, buffer) {
-            Some(_) => Ok(()), // 键已存在，旧值被丢弃
-            None => Ok(()),    // 键不存在，插入成功
+            Some(_) => Ok(()),
+            None => Ok(()),
         }
     }
 

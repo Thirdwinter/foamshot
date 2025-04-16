@@ -11,11 +11,11 @@ use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
 };
 
-use crate::{cairo_render::draw_base, foamshot::FoamShot, select_rect::SubRect};
+use crate::{cairo_render::draw_base, foamcore::FoamShot, select_rect::SubRect};
 
 /// NOTE: 为物理显示器做的抽象，包含其基础信息
 #[derive(Default, Debug)]
-pub struct FoamOutput {
+pub struct FoamMonitors {
     /// 索引，由output event进行赋值
     pub id: usize,
     /// 显示器的命名，也许会有用
@@ -47,7 +47,7 @@ pub struct FoamOutput {
     pub pool: Option<slot::SlotPool>,
 }
 
-impl FoamOutput {
+impl FoamMonitors {
     pub fn new(id: usize, output: wl_output::WlOutput, pool: SlotPool) -> Self {
         Self {
             id,
@@ -60,8 +60,8 @@ impl FoamOutput {
     }
 
     pub fn convert_pos_to_surface(
-        src_output: &FoamOutput,
-        target_output: &FoamOutput,
+        src_output: &FoamMonitors,
+        target_output: &FoamMonitors,
         surface_x: f64,
         surface_y: f64,
     ) -> (f64, f64) {
@@ -164,6 +164,7 @@ impl FoamOutput {
         self.base_buffer = Some(buffer)
     }
 
+    /// 该方法用于绘制所属输出上的子矩形
     pub fn update_select_subrect(&mut self, base_canvas: &[u8], freeze: bool) {
         if self.subrect.is_none() {
             return;
@@ -251,8 +252,6 @@ impl FoamOutput {
 
         cr.stroke().unwrap(); // 绘制边框
         cr.restore().unwrap(); // 恢复状态
-
-        // surface.frame(qh, self.id);
 
         buffer.attach_to(surface).unwrap(); // 如果 attach_to 失败则返回
 

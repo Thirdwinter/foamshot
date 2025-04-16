@@ -5,7 +5,7 @@ use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
 };
 
-use crate::{action::Action, foamshot::FoamShot};
+use crate::{action::Action, foamcore::FoamShot};
 
 impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamShot {
     fn event(
@@ -23,19 +23,14 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                 height,
                 stride,
             } => {
-                trace!(
-                    "creating buffer: data is {}, width: {}, height: {}, stride: {}, format: {:?}",
-                    data, width, height, stride, format
-                );
-
                 let current = app
-                    .wayland_ctx
+                    .wlctx
                     .foam_outputs
                     .as_mut()
                     .unwrap()
                     .get_mut(*data)
                     .unwrap();
-                let shm = app.wayland_ctx.shm.as_mut().unwrap();
+                let shm = app.wlctx.shm.as_mut().unwrap();
                 let pool = SlotPool::new(stride as usize * height as usize, shm)
                     .expect("Failed to create pool");
 
@@ -52,13 +47,12 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                         format.into_result().unwrap(),
                     )
                     .unwrap();
-                // current.base_buffer = Some(buffer);
-                app.wayland_ctx.scm.insert_buffer(*data, buffer).ok();
+                app.wlctx.scm.insert_buffer(*data, buffer).ok();
             }
             zwlr_screencopy_frame_v1::Event::BufferDone => {
                 trace!("bufferdone => data:{}, copy frame to buffer", data);
                 let buffer = app
-                    .wayland_ctx
+                    .wlctx
                     .scm
                     .base_buffers
                     .as_mut()
@@ -68,10 +62,17 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                     .wl_buffer();
                 proxy.copy(buffer);
             }
-            zwlr_screencopy_frame_v1::Event::Ready { .. } => {
-                trace!("data:{}, frame ready", data);
+            zwlr_screencopy_frame_v1::Event::Ready {
+                tv_sec_hi, // 时间戳的秒数（高32位）
+                tv_sec_lo, // 时间戳的秒数（低32位）
+                tv_nsec,   // 时间戳中的纳秒部分
+            } => {
+                let seconds: u64 = ((tv_sec_hi as u64) << 32) | (tv_sec_lo as u64);
+                // 转换为精确时间戳
+                let timestamp = (seconds * 1_000_000_000) + tv_nsec as u64;
+                trace!("data:{}, timestamp:{} frame ready", timestamp, data);
                 proxy.destroy();
-                app.wayland_ctx.scm.copy_ready += 1;
+                app.wlctx.scm.copy_ready += 1;
             }
             zwlr_screencopy_frame_v1::Event::Failed => {
                 warn!("buffer copy error");

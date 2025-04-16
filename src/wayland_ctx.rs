@@ -1,3 +1,4 @@
+use cairo::{Context, ImageSurface};
 use log::{debug, error};
 use smithay_client_toolkit::shm::{self};
 use wayland_client::{
@@ -14,8 +15,12 @@ use wayland_protocols::{
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 
 use crate::{
-    config, foam_outputs, foamshot::FoamShot, pointer_helper::PointerHelper,
-    select_rect::SelectRect, zwlr_screencopy_mode,
+    config::{self, FoamConfig},
+    foamcore::FoamShot,
+    monitors,
+    pointer_helper::PointerHelper,
+    select_rect::SelectRect,
+    zwlr_screencopy_mode,
 };
 
 #[derive(Default)]
@@ -41,7 +46,7 @@ pub struct WaylandCtx {
     pub current_freeze: bool,
 
     /// 每个输出设备一个
-    pub foam_outputs: Option<Vec<foam_outputs::FoamOutput>>,
+    pub foam_outputs: Option<Vec<monitors::FoamMonitors>>,
     pub layer_ready: usize,
 
     /// 光标管理器
@@ -53,8 +58,7 @@ pub struct WaylandCtx {
 }
 
 impl WaylandCtx {
-    pub fn new(shm: shm::Shm, qh: QueueHandle<FoamShot>) -> Self {
-        let config = config::FoamConfig::new();
+    pub fn new(shm: shm::Shm, qh: QueueHandle<FoamShot>, config: FoamConfig) -> Self {
         Self {
             qh: Some(qh),
             shm: Some(shm),
@@ -147,6 +151,7 @@ impl WaylandCtx {
             );
         }
     }
+    /// 通过 pointer_helper 坐标计算全局父矩形
     pub fn compute_global_rect(&mut self) {
         // 解包起始位置和当前位置
         let (start_x, start_y) = self.pointer_helper.g_start_pos.unwrap();
@@ -166,6 +171,7 @@ impl WaylandCtx {
 
         self.global_rect = Some(rect);
     }
+    /// 根据父矩形计算每个输出上的子矩形，如果存在，对应输出的surface请求下一帧
     pub fn process_subrects_and_send(&mut self) {
         let foam_outputs = self.foam_outputs.as_mut().unwrap();
         let rect = self.global_rect.as_ref().unwrap();
@@ -209,6 +215,66 @@ impl WaylandCtx {
                 output.subrect = None;
                 // TODO: 这里应该不用显示设置为false
                 output.need_redraw = false;
+            }
+        }
+    }
+
+    /// 计算一个最小矩形可以覆盖显示器坐标系中所有输出
+    pub fn calculate_bounding_rect(&self) -> (i32, i32, i32, i32) {
+        // 获取显示器数组
+        let outputs = self.foam_outputs.as_ref().unwrap();
+
+        // 初始化边界
+        let mut min_x = i32::MAX;
+        let mut min_y = i32::MAX;
+        let mut max_x = i32::MIN;
+        let mut max_y = i32::MIN;
+
+        // 遍历每个显示器，更新边界
+        for output in outputs {
+            min_x = min_x.min(output.global_x);
+            min_y = min_y.min(output.global_y);
+            max_x = max_x.max(output.global_x + output.width);
+            max_y = max_y.max(output.global_y + output.height);
+        }
+
+        // 返回最小矩形：左上角坐标和宽高
+        (min_x, min_y, max_x - min_x, max_y - min_y)
+    }
+
+    /// TODO: 一次绘制一个大小包含所有输出的表面，随后将其分配给所有输出
+    #[allow(unused)]
+    pub fn draw_all_outputs(&mut self) {
+        let (x, y, w, h) = self.calculate_bounding_rect();
+        let parent_surface = ImageSurface::create(cairo::Format::ARgb32, w, h)
+            .expect("Couldn't create parent surface");
+        let cr = Context::new(&parent_surface).ok().unwrap();
+        cr.set_source_rgba(0.8, 0.8, 0.8, 0.3);
+        cr.paint().unwrap();
+
+        // 遍历每个显示器，生成对应的子 Surface
+        if let Some(outputs) = &mut self.foam_outputs {
+            for output in outputs.iter_mut() {
+                // 计算子 Surface 的位置和大小
+                let x = output.global_x - x;
+                let y = output.global_y - y;
+                let w = output.width;
+                let h = output.height;
+
+                // 创建子 Surface
+                let mut sub_surface = ImageSurface::create(cairo::Format::ARgb32, w, h)
+                    .expect("Couldn't create sub surface");
+
+                // 将父 Surface 的对应区域绘制到子 Surface
+                let sub_cr = Context::new(&sub_surface).expect("Couldn't create sub context");
+                sub_cr
+                    .set_source_surface(&parent_surface, -(x as f64), -(y as f64))
+                    .ok();
+                sub_cr.paint().expect("Couldn't paint to sub surface");
+                sub_cr.target().flush(); // 确保绘制完成
+
+                // sub_surface.write_to_png(stream)
+                let d = sub_surface.data().ok().unwrap().to_vec();
             }
         }
     }

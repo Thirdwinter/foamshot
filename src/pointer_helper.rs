@@ -6,7 +6,7 @@ use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
 };
 
-use crate::foamshot::FoamShot;
+use crate::foamcore::FoamShot;
 
 #[derive(Default)]
 pub struct PointerHelper {
@@ -22,9 +22,6 @@ pub struct PointerHelper {
     /// 记录index
     pub start_index: Option<usize>,
     pub end_index: Option<usize>,
-
-    /// 是否在按下
-    pub is_pressing: bool,
 
     /// 最新的surface enter 序列号
     pub serial: u32,

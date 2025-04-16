@@ -1,4 +1,4 @@
-use crate::foam_outputs::FoamOutput;
+use crate::monitors::FoamMonitors;
 use crate::wayland_ctx::WaylandCtx;
 use std::error::Error;
 
@@ -101,7 +101,7 @@ pub fn process_all_outputs(
 
 /// 处理单个显示器输出
 pub fn process_single_output(
-    output: &mut FoamOutput,
+    output: &mut FoamMonitors,
     base_canvas: &mut [u8],
     capture_info: &CaptureInfo,
     final_surface: &cairo::ImageSurface,

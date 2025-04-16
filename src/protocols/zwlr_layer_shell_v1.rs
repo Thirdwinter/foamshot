@@ -3,7 +3,7 @@ use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::layer_shell::v1::client::{zwlr_layer_shell_v1, zwlr_layer_surface_v1};
 
 use crate::action::Action;
-use crate::foamshot::FoamShot;
+use crate::foamcore::FoamShot;
 
 impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
     fn event(
@@ -28,15 +28,13 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                 proxy.set_size(width, height);
                 if app.action == Action::Init {
                     debug!("layer show");
-                    app.wayland_ctx.attach_with_udata(*data);
-                    app.wayland_ctx.layer_ready += 1;
-                    if app.wayland_ctx.layer_ready
-                        == app.wayland_ctx.foam_outputs.as_ref().unwrap().len()
-                    {
-                        app.wayland_ctx.current_freeze = app.wayland_ctx.config.freeze;
+                    app.wlctx.attach_with_udata(*data);
+                    app.wlctx.layer_ready += 1;
+                    if app.wlctx.layer_ready == app.wlctx.foam_outputs.as_ref().unwrap().len() {
+                        app.wlctx.current_freeze = app.wlctx.config.freeze;
                         app.action = Action::WaitPointerPress;
 
-                        app.wayland_ctx.layer_ready = 0;
+                        app.wlctx.layer_ready = 0;
                     }
                 }
             }

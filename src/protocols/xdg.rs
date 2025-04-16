@@ -3,7 +3,7 @@ use wayland_client::{Dispatch, Proxy};
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};
 use wayland_protocols::xdg::xdg_output::zv1::client::{zxdg_output_manager_v1, zxdg_output_v1};
 
-use crate::foamshot::FoamShot;
+use crate::foamcore::FoamShot;
 
 // NOTE: unused
 #[allow(unused_variables)]
@@ -31,7 +31,7 @@ impl Dispatch<zxdg_output_v1::ZxdgOutputV1, usize> for FoamShot {
         qh: &wayland_client::QueueHandle<Self>,
     ) {
         let foam_output = app
-            .wayland_ctx
+            .wlctx
             .foam_outputs
             .as_mut()
             .unwrap()

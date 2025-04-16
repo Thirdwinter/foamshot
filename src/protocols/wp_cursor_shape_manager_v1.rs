@@ -3,7 +3,7 @@ use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,
 };
 
-use crate::foamshot::FoamShot;
+use crate::foamcore::FoamShot;
 
 // NOTE: unused
 #[allow(unused_variables)]
