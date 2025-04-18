@@ -116,6 +116,15 @@ impl WaylandCtx {
         }
     }
 
+    /// 判定全局矩形是否完全在一个显示器内
+    pub fn is_rectangle_in_monitor(&self) -> bool {
+        false
+    }
+    /// 检查矩形是否在某个显示器内或跨越多个显示器, 返回-1跨多个显示器，返回非负数则为显示器id，不为-1的其它值则不在显示器内
+    pub fn find_monitor_for_rectangle(&self) -> i32 {
+        -2
+    }
+
     /// 用一个空的buffer附加到surface，使屏幕恢复正常状态，用来 toggle freeze 前清空屏幕以便进行copy
     pub fn unset_freeze(&mut self) {
         for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {

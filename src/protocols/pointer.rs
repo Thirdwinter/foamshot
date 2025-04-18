@@ -4,7 +4,7 @@ use wayland_client::{Dispatch, Proxy};
 use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape;
 
 use crate::action::{Action, EditAction};
-use crate::foamcore::FoamShot;
+use crate::foamcore::{FoamShot, UserTarget};
 use crate::monitors;
 
 // TODO:
@@ -135,7 +135,10 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             app.action = if app.wlctx.config.edit {
                                 Action::OnEdit(EditAction::None)
                             } else {
-                                Action::Output
+                                match app.target {
+                                    UserTarget::Shot => Action::Output,
+                                    UserTarget::Recorder => Action::OnRecorder,
+                                }
                             };
                         }
                         _ => (),

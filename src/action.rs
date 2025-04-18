@@ -10,8 +10,8 @@ pub enum Action {
     ToggleFreeze(IsFreeze),
     OnDraw,
     OnEdit(EditAction),
+    OnRecorder,
     Output,
-    Pin,
     Exit,
 }
 

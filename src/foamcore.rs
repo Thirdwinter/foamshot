@@ -8,12 +8,18 @@ use crate::{
     notify::{self, NotificationLevel},
     save_helper, wayland_ctx,
 };
+#[derive(PartialEq, Eq)]
+pub enum UserTarget {
+    Shot = 0,
+    Recorder = 1,
+}
 
 pub struct FoamShot {
     /// foamshot wayland context
     pub wlctx: wayland_ctx::WaylandCtx,
 
     pub action: action::Action,
+    pub target: UserTarget,
 }
 
 /// run
@@ -84,8 +90,9 @@ pub fn run_main_loop() {
                 shot_foam.send_save_info();
                 shot_foam.action = Action::Exit
             }
-            Action::Pin => {
+            Action::OnRecorder => {
                 // TODO:
+                // shot_foam.wait_copy(&mut event_queue);
             }
             Action::Exit => std::process::exit(0),
         }
@@ -99,6 +106,7 @@ impl FoamShot {
         Self {
             wlctx: wayland_ctx::WaylandCtx::new(shm, qh, config),
             action: Action::default(),
+            target: UserTarget::Shot,
         }
     }
 
