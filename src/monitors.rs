@@ -99,7 +99,9 @@ impl FoamMonitors {
         let surface = self.surface.as_mut().expect("Missing surfaces");
 
         surface.set_buffer_scale(self.scale.round() as i32);
-        self.viewport = Some(viewporter.get_viewport(surface, qh, id));
+        let viewporter = viewporter.get_viewport(surface, qh, id);
+        viewporter.set_destination(self.logical_width, self.logical_height);
+        self.viewport = Some(viewporter);
 
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
             layer_shell,

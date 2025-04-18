@@ -1,6 +1,7 @@
 mod keyboard;
 mod pointer;
 mod wp_cursor_shape_manager_v1;
+mod wp_fractional_scale_v1;
 mod wp_viewporter;
 mod xdg;
 mod zwlr_layer_shell_v1;
