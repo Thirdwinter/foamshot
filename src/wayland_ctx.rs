@@ -8,6 +8,7 @@ use wayland_client::{
 use wayland_protocols::{
     wp::{
         cursor_shape::v1::client::wp_cursor_shape_device_v1::Shape,
+        fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
         viewporter::client::wp_viewporter,
     },
     xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
@@ -38,6 +39,7 @@ pub struct WaylandCtx {
     pub xdg_output_manager: Option<(zxdg_output_manager_v1::ZxdgOutputManagerV1, u32)>,
     pub xdgwmbase: Option<(xdg_wm_base::XdgWmBase, u32)>,
     pub viewporter: Option<(wp_viewporter::WpViewporter, u32)>,
+    pub fractional_manager: Option<(WpFractionalScaleManagerV1, u32)>,
 
     pub current_index: Option<usize>,
     /// FIX: 不符合预期的pointer事件，用于记录其中的 surface 索引
@@ -95,6 +97,9 @@ impl WaylandCtx {
                 &self.layer_shell.as_ref().unwrap().0,
                 self.qh.as_ref().unwrap(),
                 self.viewporter.clone().unwrap().0,
+                // WARN: THIS WAY IT REQUIRES THE COMPOSITOR TO IMPLEMENT FRACTIONAL SCALE
+                // OR ELSE THE UNWRAP IS GONNA CRASH THE PROGRAM
+                self.fractional_manager.clone().unwrap().0,
             );
         }
     }
@@ -207,7 +212,6 @@ impl WaylandCtx {
                 if let Some(surface) = &mut output.surface {
                     let qh = self.qh.as_ref().unwrap();
                     surface.frame(qh, output.id);
-                    surface.set_buffer_scale(output.scale.round() as i32);
                     surface.commit();
                 }
             } else {

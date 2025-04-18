@@ -23,6 +23,10 @@ use wayland_client::{
 use wayland_protocols::{
     wp::{
         cursor_shape::v1::client::wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
+        fractional_scale::v1::client::{
+            wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+            wp_fractional_scale_v1::WpFractionalScaleV1,
+        },
         viewporter::client::wp_viewporter::WpViewporter,
     },
     xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
@@ -133,6 +137,13 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             app.wlctx.viewporter = Some((viewporter, name));
                         }
                     }
+                    // Fractional scale
+                    _ if interface_name == WpFractionalScaleManagerV1::interface().name => {
+                        if app.wlctx.fractional_manager.is_none() {
+                            let fractional = proxy.bind(name, version, qh, ());
+                            app.wlctx.fractional_manager = Some((fractional, name));
+                        }
+                    }
                     _ => (),
                 }
             }
@@ -168,6 +179,12 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             warn!("WpViewporter was removed");
                             app.wlctx.viewporter = None;
                         }
+                    } else if let Some((_, fractional_manager_name)) = &app.wlctx.fractional_manager
+                    {
+                        if name == *fractional_manager_name {
+                            warn!("WpFractionalScaleManagerV1 was removed");
+                            app.wlctx.fractional_manager = None;
+                        }
                     }
                 }
             }
@@ -189,8 +206,8 @@ impl Dispatch<wl_output::WlOutput, usize> for FoamShot {
     ) {
         match event {
             wl_output::Event::Scale { factor } => {
-                let mut foam_output = app.wlctx.foam_outputs.as_mut().unwrap().get_mut(*data);
-                foam_output.as_mut().unwrap().scale = factor.into()
+                // NOTE: WE DO NOT CHANGE SCALE HERE SINCE IT WILL HAPPEN BEFORE WE INIT LAYER
+                // GO CHECK ON WlSurface INSTEAD
             }
             wl_output::Event::Mode {
                 flags: _,
@@ -258,12 +275,22 @@ impl Dispatch<wl_surface::WlSurface, usize> for FoamShot {
     ) {
         match event {
             wl_surface::Event::PreferredBufferTransform { transform } => {
-                if let Ok(t) = transform.into_result() {
-                    proxy.set_buffer_transform(t);
-                }
+                // NOTE: IDK WHAT IT DOES
+                // if let Ok(t) = transform.into_result() {
+                //     proxy.set_buffer_transform(t);
+                // }
             }
             wl_surface::Event::PreferredBufferScale { factor } => {
-                proxy.set_buffer_scale(factor);
+                let mut foam_output = app.wlctx.foam_outputs.as_mut().unwrap().get_mut(*data);
+                foam_output
+                    .as_mut()
+                    .unwrap()
+                    .scale
+                    .as_mut()
+                    .unwrap()
+                    .update_normal(factor as u32);
+                // NOTE: WE DO NOT CHANGE BUFFER SCALE, USE ViewPorter INSTEAD.
+                // proxy.set_buffer_scale(factor);
             }
             _ => {}
         }
