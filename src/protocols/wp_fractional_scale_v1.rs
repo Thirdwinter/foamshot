@@ -1,5 +1,5 @@
 use smithay_client_toolkit::delegate_simple;
-use wayland_client::{QueueHandle, protocol::wl_surface::WlSurface};
+use wayland_client::QueueHandle;
 use wayland_protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
     wp_fractional_scale_v1::{self, WpFractionalScaleV1},

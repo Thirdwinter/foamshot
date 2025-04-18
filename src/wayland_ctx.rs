@@ -99,7 +99,8 @@ impl WaylandCtx {
                 self.viewporter.clone().unwrap().0,
                 // WARN: THIS WAY IT REQUIRES THE COMPOSITOR TO IMPLEMENT FRACTIONAL SCALE
                 // OR ELSE THE UNWRAP IS GONNA CRASH THE PROGRAM
-                self.fractional_manager.clone().unwrap().0,
+                // TODO: Add fallback
+                self.fractional_manager.clone(),
             );
         }
     }
@@ -122,9 +123,11 @@ impl WaylandCtx {
     }
 
     /// 判定全局矩形是否完全在一个显示器内
+    #[allow(unused)]
     pub fn is_rectangle_in_monitor(&self) -> bool {
         false
     }
+    #[allow(unused)]
     /// 检查矩形是否在某个显示器内或跨越多个显示器, 返回-1跨多个显示器，返回非负数则为显示器id，不为-1的其它值则不在显示器内
     pub fn find_monitor_for_rectangle(&self) -> i32 {
         -2

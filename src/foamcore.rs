@@ -9,6 +9,7 @@ use crate::{
     save_helper, wayland_ctx,
 };
 #[derive(PartialEq, Eq)]
+#[allow(unused)]
 pub enum UserTarget {
     Shot = 0,
     Recorder = 1,

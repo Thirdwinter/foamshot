@@ -57,8 +57,13 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     }
                 };
 
-                let x = surface_x + foam_output.global_x as f64;
-                let y = surface_y + foam_output.global_y as f64;
+                // 转换成相对surface的坐标
+                // let x = surface_x + foam_output.global_x as f64;
+                // let y = surface_y + foam_output.global_y as f64;
+                let (x, y) = foam_output.scale.as_ref().unwrap().calculate_pos((
+                    surface_x + foam_output.global_x as f64,
+                    surface_y + foam_output.global_y as f64,
+                ));
 
                 // 发送多个enter时候，只选择满足坐标约束的
                 if x >= 0.0
@@ -187,6 +192,14 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     x + start_output.global_x as f64,
                     y + start_output.global_y as f64,
                 );
+
+                // TEST: 先凑合着
+                let global_pos = start_output
+                    .scale
+                    .as_ref()
+                    .unwrap()
+                    .calculate_pos(global_pos);
+
                 app.wlctx.pointer_helper.g_current_pos = Some(global_pos);
 
                 match app.action {

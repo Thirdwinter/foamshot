@@ -23,10 +23,7 @@ use wayland_client::{
 use wayland_protocols::{
     wp::{
         cursor_shape::v1::client::wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
-        fractional_scale::v1::client::{
-            wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
-            wp_fractional_scale_v1::WpFractionalScaleV1,
-        },
+        fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
         viewporter::client::wp_viewporter::WpViewporter,
     },
     xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},

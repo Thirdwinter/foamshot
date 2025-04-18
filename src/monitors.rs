@@ -96,18 +96,29 @@ impl FoamMonitors {
         layer_shell: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
         qh: &QueueHandle<FoamShot>,
         viewporter: wp_viewporter::WpViewporter,
-        fractional_manager: WpFractionalScaleManagerV1,
+        fractional_manager: Option<(WpFractionalScaleManagerV1, u32)>,
     ) {
         let id = self.id;
         let output = self.output.as_ref().unwrap();
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_mut().expect("Missing surfaces");
 
-        // fractional scale
-        let fractional = fractional_manager.get_fractional_scale(surface, qh, id);
         let viewport = viewporter.get_viewport(surface, qh, id);
         viewport.set_destination(self.logical_width, self.logical_height);
-        self.scale = Some(Scale::new_fractional(fractional, viewport));
+
+        if let Some((fm, _)) = fractional_manager {
+            let fractional = fm.get_fractional_scale(surface, qh, id);
+            self.scale = Some(Scale::new_fractional(fractional, viewport));
+        } else {
+            // TODO:
+            self.scale = Some(Scale::new_normal())
+        }
+
+        // fractional scale
+        // let fractional = fractional_manager.get_fractional_scale(surface, qh, id);
+        // let viewport = viewporter.get_viewport(surface, qh, id);
+        // viewport.set_destination(self.logical_width, self.logical_height);
+        // self.scale = Some(Scale::new_fractional(fractional, viewport));
 
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
             layer_shell,
@@ -273,6 +284,7 @@ pub struct Scale {
     normal: u32,
     fractional: Option<(u32, WpFractionalScaleV1, WpViewport)>,
 }
+
 impl Scale {
     fn new_fractional(fractional_client: WpFractionalScaleV1, viewprot: WpViewport) -> Self {
         Self {
@@ -280,20 +292,25 @@ impl Scale {
             fractional: Some((0, fractional_client, viewprot)),
         }
     }
+
     fn new_normal() -> Self {
         Self {
             normal: 1,
             fractional: None,
         }
     }
+
+    #[allow(unused)]
     fn is_fractional(&self) -> bool {
         self.fractional.is_some()
     }
+
     pub fn update_normal(&mut self, normal: u32) -> bool {
         let changed = self.normal != normal;
         self.normal = normal;
         changed
     }
+
     pub fn update_fraction(&mut self, fraction: u32) -> bool {
         if let Some(fractional) = self.fractional.as_mut() {
             let changed = fractional.0 != fraction;
@@ -303,21 +320,21 @@ impl Scale {
             false
         }
     }
-    pub fn calculate_pos(&self, pos: &mut (f64, f64)) {
+
+    pub fn calculate_pos(&self, pos: (f64, f64)) -> (f64, f64) {
         if let Some(fractional) = self.fractional.as_ref() {
             let mut scale = fractional.0;
             if scale == 0 {
-                scale = 120
+                scale = 120;
             }
-            let scale_f64 = scale as f64 / 120.;
-            pos.0 *= scale_f64;
-            pos.1 *= scale_f64;
+            let scale_f64 = scale as f64 / 120.0;
+            (pos.0 * scale_f64, pos.1 * scale_f64)
         } else {
-            pos.0 *= self.normal as f64;
-            pos.1 *= self.normal as f64;
+            (pos.0 * self.normal as f64, pos.1 * self.normal as f64)
         }
     }
 }
+
 impl Drop for Scale {
     fn drop(&mut self) {
         #[allow(clippy::option_map_unit_fn)]
