@@ -5,7 +5,13 @@ use wayland_client::{
     QueueHandle,
     protocol::{wl_output, wl_shm::Format, wl_surface},
 };
-use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
+use wayland_protocols::wp::{
+    fractional_scale::v1::client::{
+        wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+        wp_fractional_scale_v1::WpFractionalScaleV1,
+    },
+    viewporter::client::{wp_viewport::WpViewport, wp_viewporter},
+};
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{self, Layer},
     zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
@@ -31,9 +37,6 @@ pub struct FoamMonitors {
     pub global_y: i32,
     pub logical_width: i32,
     pub logical_height: i32,
-    /// 显示器缩放分数，默认设置为1
-    pub scale: f64,
-    pub viewport: Option<wp_viewport::WpViewport>,
 
     pub base_buffer: Option<Buffer>,
     // add freeze layer surfae to impl set_freeze
@@ -45,6 +48,8 @@ pub struct FoamMonitors {
     pub need_redraw: bool,
 
     pub pool: Option<slot::SlotPool>,
+
+    pub scale: Option<Scale>,
 }
 
 impl FoamMonitors {
@@ -52,7 +57,6 @@ impl FoamMonitors {
         Self {
             id,
             output: Some(output),
-            scale: 1.0,
             name: "unnamed".to_string(),
             pool: Some(pool),
             ..Default::default()
@@ -92,14 +96,18 @@ impl FoamMonitors {
         layer_shell: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
         qh: &QueueHandle<FoamShot>,
         viewporter: wp_viewporter::WpViewporter,
+        fractional_manager: WpFractionalScaleManagerV1,
     ) {
         let id = self.id;
         let output = self.output.as_ref().unwrap();
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_mut().expect("Missing surfaces");
 
-        surface.set_buffer_scale(self.scale.round() as i32);
-        self.viewport = Some(viewporter.get_viewport(surface, qh, id));
+        // fractional scale
+        let fractional = fractional_manager.get_fractional_scale(surface, qh, id);
+        let viewport = viewporter.get_viewport(surface, qh, id);
+        viewport.set_destination(self.logical_width, self.logical_height);
+        self.scale = Some(Scale::new_fractional(fractional, viewport));
 
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
             layer_shell,
@@ -118,7 +126,6 @@ impl FoamMonitors {
 
         self.layer_surface = Some(layer);
         surface.damage(0, 0, w, h);
-        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
     }
 
@@ -130,11 +137,10 @@ impl FoamMonitors {
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         canvas.copy_from_slice(base_canvas);
 
-        draw_base(canvas, w, h, self.scale, self.scale);
+        draw_base(canvas, w, h);
 
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
-        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
         self.base_buffer = Some(buffer)
     }
@@ -146,7 +152,6 @@ impl FoamMonitors {
         canvas.fill(0);
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
-        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
         self.base_buffer = Some(buffer)
     }
@@ -156,7 +161,7 @@ impl FoamMonitors {
         let pool = self.pool.as_mut().unwrap();
         let (buffer, canvas) = pool.create_buffer(w, h, w * 4, Format::Argb8888).unwrap();
         canvas.fill(0);
-        draw_base(canvas, w, h, self.scale, self.scale);
+        draw_base(canvas, w, h);
 
         buffer.attach_to(surface).unwrap();
         surface.damage_buffer(0, 0, w, h);
@@ -193,7 +198,6 @@ impl FoamMonitors {
         };
 
         let cr = Context::new(&cairo_surface).unwrap();
-        cr.scale(self.scale, self.scale);
 
         // 获取Cairo表面尺寸
         let surface_width = cairo_surface.width() as f64;
@@ -258,9 +262,68 @@ impl FoamMonitors {
         surface.damage_buffer(0, 0, w, h);
 
         // 提交 surface
-        surface.set_buffer_scale(self.scale.round() as i32);
         surface.commit();
         self.need_redraw = false;
         self.base_buffer = Some(buffer)
+    }
+}
+
+#[derive(Debug)]
+pub struct Scale {
+    normal: u32,
+    fractional: Option<(u32, WpFractionalScaleV1, WpViewport)>,
+}
+impl Scale {
+    fn new_fractional(fractional_client: WpFractionalScaleV1, viewprot: WpViewport) -> Self {
+        Self {
+            normal: 1,
+            fractional: Some((0, fractional_client, viewprot)),
+        }
+    }
+    fn new_normal() -> Self {
+        Self {
+            normal: 1,
+            fractional: None,
+        }
+    }
+    fn is_fractional(&self) -> bool {
+        self.fractional.is_some()
+    }
+    pub fn update_normal(&mut self, normal: u32) -> bool {
+        let changed = self.normal != normal;
+        self.normal = normal;
+        changed
+    }
+    pub fn update_fraction(&mut self, fraction: u32) -> bool {
+        if let Some(fractional) = self.fractional.as_mut() {
+            let changed = fractional.0 != fraction;
+            fractional.0 = fraction;
+            changed
+        } else {
+            false
+        }
+    }
+    pub fn calculate_pos(&self, pos: &mut (f64, f64)) {
+        if let Some(fractional) = self.fractional.as_ref() {
+            let mut scale = fractional.0;
+            if scale == 0 {
+                scale = 120
+            }
+            let scale_f64 = scale as f64 / 120.;
+            pos.0 *= scale_f64;
+            pos.1 *= scale_f64;
+        } else {
+            pos.0 *= self.normal as f64;
+            pos.1 *= self.normal as f64;
+        }
+    }
+}
+impl Drop for Scale {
+    fn drop(&mut self) {
+        #[allow(clippy::option_map_unit_fn)]
+        self.fractional.as_ref().map(|(_, f, v)| {
+            f.destroy();
+            v.destroy();
+        });
     }
 }
