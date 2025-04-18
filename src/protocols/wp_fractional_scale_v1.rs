@@ -24,7 +24,7 @@ impl wayland_client::Dispatch<WpFractionalScaleV1, usize> for FoamShot {
                 .scale
                 .as_mut()
                 .unwrap()
-                .update_normal(scale);
+                .update_fraction(scale);
         }
     }
 }
