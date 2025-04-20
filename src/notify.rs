@@ -16,7 +16,7 @@ impl NotificationLevel {
     }
 }
 
-pub fn send<T: ToString + std::convert::AsRef<std::ffi::OsStr>>(
+pub fn send<T: ToString>(
     level: NotificationLevel,
     summary: &str,
     body: T,
@@ -33,8 +33,10 @@ pub fn send<T: ToString + std::convert::AsRef<std::ffi::OsStr>>(
         .arg(urgency)
         .arg(summary)
         .arg(body.to_string())
+        .arg("-h")
+        .arg(format!("string:image-path:{:?}", image_path.to_string()))
         .arg("-i")
-        .arg(image_path)
+        .arg(image_path.to_string())
         .arg("-a")
         .arg(env!("CARGO_PKG_NAME"))
         .output()
