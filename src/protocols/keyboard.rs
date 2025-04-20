@@ -37,15 +37,9 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                     app.action = Action::Output
                 }
                 KEY_S => match app.action {
-                    Action::WaitPointerPress => {
-                        return;
-                    }
-                    Action::Init => {
-                        return;
-                    }
-                    Action::Exit => {
-                        return;
-                    }
+                    Action::WaitPointerPress => {}
+                    Action::Init => {}
+                    Action::Exit => {}
                     _ => app.action = Action::Output,
                 },
                 KEY_F => {

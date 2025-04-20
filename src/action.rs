@@ -16,6 +16,7 @@ pub enum Action {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[allow(clippy::enum_variant_names)]
 pub enum IsFreeze {
     NewFrameFreeze,
     OldFrameFreeze,
@@ -37,6 +38,7 @@ pub enum EditAction {
     Move,
 }
 impl EditAction {
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_cursor_shape(&self) -> Shape {
         match self {
             EditAction::None => Shape::Default,

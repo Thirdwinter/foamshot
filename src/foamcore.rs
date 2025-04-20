@@ -154,7 +154,7 @@ impl FoamShot {
                 .foam_outputs
                 .as_ref()
                 .unwrap()
-                .get(0)
+                .first()
                 .unwrap()
                 .output
                 .as_ref()

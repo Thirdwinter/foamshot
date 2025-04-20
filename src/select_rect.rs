@@ -67,7 +67,7 @@ impl SelectRect {
                         self.ey = origin_rect.3 + dy;
                     }
 
-                    return Action::OnEdit(EditAction::Move);
+                    Action::OnEdit(EditAction::Move)
                 }
 
                 EditAction::Left => {
@@ -126,7 +126,7 @@ impl SelectRect {
                         std::mem::swap(&mut self.sy, &mut self.ey);
                         return Action::OnEdit(EditAction::BottomRight);
                     }
-                    return act;
+                    act
                 }
                 EditAction::BottomLeft => {
                     self.sx = end_pos.0 as i32;
@@ -139,7 +139,7 @@ impl SelectRect {
                         std::mem::swap(&mut self.sy, &mut self.ey);
                         return Action::OnEdit(EditAction::TopLeft);
                     }
-                    return act;
+                    act
                 }
                 EditAction::BottomRight => {
                     self.ex = end_pos.0 as i32;
@@ -152,12 +152,12 @@ impl SelectRect {
                         std::mem::swap(&mut self.sy, &mut self.ey);
                         return Action::OnEdit(EditAction::TopRight);
                     }
-                    return act;
+                    act
                 }
                 _ => act,
             },
             _ => {
-                return Action::OnEdit(EditAction::None);
+                Action::OnEdit(EditAction::None)
             }
         }
     }

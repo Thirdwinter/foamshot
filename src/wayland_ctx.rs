@@ -96,7 +96,7 @@ impl WaylandCtx {
     }
 
     pub fn init_base_layers(&mut self) {
-        for (_, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
+        for v in self.foam_outputs.as_mut().unwrap().iter_mut() {
             v.init_layer(
                 &self.layer_shell.as_ref().unwrap().0,
                 self.qh.as_ref().unwrap(),
@@ -139,7 +139,7 @@ impl WaylandCtx {
 
     /// 用一个空的buffer附加到surface，使屏幕恢复正常状态，用来 toggle freeze 前清空屏幕以便进行copy
     pub fn unset_freeze(&mut self) {
-        for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
+        for v in self.foam_outputs.as_mut().unwrap().iter_mut() {
             v.clean_attach();
         }
     }

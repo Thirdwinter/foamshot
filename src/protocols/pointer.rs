@@ -40,7 +40,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 app.wlctx.unknown_index = Some(surface_index);
 
                 // set cursor shape
-                if let Err(_) = app.wlctx.set_cursor_shape(Shape::Crosshair, proxy) {
+                if app.wlctx.set_cursor_shape(Shape::Crosshair, proxy).is_err() {
                     app.send_warn("can not set cursor shape");
                 }
 
@@ -219,9 +219,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                         }
 
                         match edit_action {
-                            EditAction::None => {
-                                return;
-                            }
+                            EditAction::None => {}
                             _ => {
                                 if let (Some(start_pos), Some(global_rect)) = (
                                     app.wlctx.pointer_helper.g_start_pos,
