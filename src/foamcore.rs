@@ -89,11 +89,13 @@ pub fn run_main_loop() {
                     }
                 }
                 shot_foam.send_save_info();
-                shot_foam.action = Action::Exit
+                std::process::exit(0)
+                // shot_foam.action = Action::Exit
             }
             Action::OnRecorder => {
                 // TODO:
                 // shot_foam.wait_copy(&mut event_queue);
+                shot_foam.wait_copy_2(&mut event_queue);
             }
             Action::Exit => std::process::exit(0),
         }
@@ -140,7 +142,30 @@ impl FoamShot {
         // 重置计数器
         self.wlctx.scm.copy_ready = 0;
         // 存储 copy 到的数据
-        self.wlctx.store_copy_canvas();
+        self.wlctx.storage_copy_canvas();
+    }
+
+    /// TODO: 循环录制
+    pub fn wait_copy_2(&mut self, event_queue: &mut EventQueue<FoamShot>) {
+        self.wlctx.fq.is_copy = false;
+        self.wlctx.scm.request_copy_one(
+            true,
+            self.wlctx
+                .foam_outputs
+                .as_ref()
+                .unwrap()
+                .get(0)
+                .unwrap()
+                .output
+                .as_ref()
+                .unwrap(),
+            self.wlctx.qh.as_ref().unwrap(),
+            0,
+        );
+
+        while !self.wlctx.fq.is_copy {
+            event_queue.blocking_dispatch(self).unwrap();
+        }
     }
 
     /// 上层调用，切换所有输出上的屏幕冻结状态，在调用前需要使用 `wait_freeze` 重新进行屏幕copy

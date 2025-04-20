@@ -2,6 +2,7 @@ mod action;
 mod cairo_render;
 mod config;
 mod foamcore;
+mod frame_queue;
 mod monitors;
 mod notify;
 mod pointer_helper;

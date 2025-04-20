@@ -1,6 +1,6 @@
 use cairo::{Context, ImageSurface};
 use log::{debug, error};
-use smithay_client_toolkit::shm::{self};
+use smithay_client_toolkit::shm::{self, slot::SlotPool};
 use wayland_client::{
     QueueHandle,
     protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat},
@@ -18,6 +18,7 @@ use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 use crate::{
     config::{self, FoamConfig},
     foamcore::FoamShot,
+    frame_queue::FrameQueue,
     monitors,
     pointer_helper::PointerHelper,
     select_rect::SelectRect,
@@ -57,12 +58,15 @@ pub struct WaylandCtx {
     pub config: config::FoamConfig,
     pub scm: zwlr_screencopy_mode::ZwlrScreencopyMode,
     pub global_rect: Option<SelectRect>,
+
+    pub fq: FrameQueue,
 }
 
 impl WaylandCtx {
     pub fn new(shm: shm::Shm, qh: QueueHandle<FoamShot>, config: FoamConfig) -> Self {
         Self {
             qh: Some(qh),
+            fq: FrameQueue::new(SlotPool::new(256 * 256, &shm).ok()),
             shm: Some(shm),
             foam_outputs: Some(Vec::new()),
             config: config::FoamConfig::new(),
@@ -138,6 +142,17 @@ impl WaylandCtx {
         for (_i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
             v.clean_attach();
         }
+    }
+
+    pub fn no_freeze_attach_with_udata(&mut self, udata: usize) {
+        self.foam_outputs
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|m| m.id == udata)
+            .as_mut()
+            .unwrap()
+            .clean_attach();
     }
 
     /// 所有输出设备发起全屏捕获请求
@@ -313,7 +328,7 @@ impl WaylandCtx {
         }
     }
 
-    pub fn store_copy_canvas(&mut self) {
+    pub fn storage_copy_canvas(&mut self) {
         for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
             let pool = v.pool.as_mut().unwrap();
             self.scm.insert_canvas(i, pool);

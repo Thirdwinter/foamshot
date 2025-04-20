@@ -64,6 +64,10 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                             Action::ToggleFreeze(IsFreeze::UnFreeze)
                         };
                     }
+                    Action::OnRecorder => {
+                        debug!("recorder size: {}", app.wlctx.fq.f.len());
+                        std::process::exit(0);
+                    }
                     _ => {
                         std::process::exit(0);
                     }

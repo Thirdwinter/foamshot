@@ -28,7 +28,11 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                 proxy.set_size(width, height);
                 if app.action == Action::Init {
                     debug!("layer show");
-                    app.wlctx.attach_with_udata(*data);
+                    if app.wlctx.config.full_screen {
+                        app.wlctx.no_freeze_attach_with_udata(*data);
+                    } else {
+                        app.wlctx.attach_with_udata(*data);
+                    }
                     app.wlctx.layer_ready += 1;
                     if app.wlctx.layer_ready == app.wlctx.foam_outputs.as_ref().unwrap().len() {
                         app.wlctx.current_freeze = app.wlctx.config.freeze;

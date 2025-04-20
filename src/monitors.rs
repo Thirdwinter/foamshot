@@ -241,6 +241,7 @@ impl FoamMonitors {
         cr.set_line_width(2.0); // 设置边框宽度
         cr.set_source_rgba(0.0, 0.0, 0.0, 1.0); // 设置边框颜色为黑色
 
+        // 这么写感觉我像傻逼一样
         // 判断是否绘制左边
         if subrect.relative_min_x > 0 {
             cr.move_to(x.into(), y.into());
