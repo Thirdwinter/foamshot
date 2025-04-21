@@ -34,7 +34,7 @@ pub fn send<T: ToString>(
         .arg(summary)
         .arg(body.to_string())
         .arg("-h")
-        .arg(format!("string:image-path:{:?}", image_path.to_string()))
+        .arg(format!("string:image-path:{}", image_path.to_string()))
         .arg("-i")
         .arg(image_path.to_string())
         .arg("-a")

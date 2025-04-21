@@ -151,6 +151,9 @@ impl FoamConfig {
             dir_path.clone()
         };
 
+        // 将路径转换为绝对路径
+        let absolute_path = fs::canonicalize(&final_path).unwrap_or_else(|_| final_path.clone());
+
         // 处理文件名
         let mut final_name = String::from(filename);
         let mut counter = 0;
@@ -167,12 +170,12 @@ impl FoamConfig {
             .unwrap_or("png");
 
         // 检查文件是否存在，如果存在则添加递增的数字
-        while final_path.join(&final_name).exists() {
+        while absolute_path.join(&final_name).exists() {
             counter += 1;
             final_name = format!("{}-{}.{}", stem, counter, ext);
         }
 
-        (final_path, final_name)
+        (absolute_path, final_name)
     }
 
     fn detect_image_type(path: &mut PathBuf) -> ImageType {
