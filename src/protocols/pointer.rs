@@ -142,7 +142,10 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             } else {
                                 match app.target {
                                     UserTarget::Shot => Action::Output,
-                                    UserTarget::Recorder => Action::OnRecorder,
+                                    UserTarget::Recorder => {
+                                        app.wlctx.unset_freeze();
+                                        Action::OnRecorder
+                                    }
                                 }
                             };
                         }

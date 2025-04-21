@@ -143,6 +143,7 @@ impl FoamShot {
         self.wlctx.scm.copy_ready = 0;
         // 存储 copy 到的数据
         self.wlctx.storage_copy_canvas();
+        // self.target = UserTarget::Recorder
     }
 
     /// TODO: 循环录制

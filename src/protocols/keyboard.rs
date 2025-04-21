@@ -60,6 +60,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                     }
                     Action::OnRecorder => {
                         debug!("recorder size: {}", app.wlctx.fq.f.len());
+                        app.wlctx.fq.to_gif("a.gif").ok();
                         std::process::exit(0);
                     }
                     _ => {

@@ -1,3 +1,6 @@
+use image::codecs::gif::GifEncoder;
+use image::{ImageBuffer, Rgba};
+use log::debug;
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::protocol::wl_shm::Format;
 
@@ -62,5 +65,41 @@ impl FrameQueue {
         self.current_buffer = None;
         self.is_copy = true;
         // println!("len: {}", self.f.iter().len())
+    }
+
+    pub fn to_gif(&mut self, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // 创建输出文件
+        let file = std::fs::File::create(output_path)?;
+        let mut encoder = GifEncoder::new_with_speed(file, 30);
+        for (i, f) in self.f.iter_mut().enumerate() {
+            if i % 3 != 0 {
+                continue;
+            }
+            let mut rgb_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(1366, 768);
+            let data = f.canvas.as_mut().unwrap();
+
+            // 复制像素数据（wl_shm_buffer使用ARGB8888格式，需要转换为RGBA）
+            for y in 0..768 {
+                for x in 0..1366 {
+                    let offset = (y as usize * 1366 * 4) + (x as usize * 4);
+                    // let a = data[offset];
+                    // let r = data[offset + 1];
+                    // let g = data[offset + 2];
+                    // let b = data[offset + 3];
+                    let r = data[offset + 1];
+                    let g = data[offset + 2];
+                    let b = data[offset + 3];
+                    rgb_buffer.put_pixel(x as u32, y as u32, Rgba([r, g, b, 255]));
+                }
+            }
+            // 创建帧并设置延迟
+            let frame = image::Frame::new(rgb_buffer);
+
+            // 编码当前帧
+            debug!("encode_frame: {}", i);
+            encoder.encode_frame(frame)?;
+        }
+
+        Ok(())
     }
 }
