@@ -1,5 +1,4 @@
-use image::codecs::gif::GifEncoder;
-use image::{ImageBuffer, Rgba};
+use image::{ImageBuffer, Rgba, codecs::gif::GifEncoder};
 use log::debug;
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::protocol::wl_shm::Format;
@@ -72,26 +71,23 @@ impl FrameQueue {
         let file = std::fs::File::create(output_path)?;
         let mut encoder = GifEncoder::new_with_speed(file, 30);
         for (i, f) in self.f.iter_mut().enumerate() {
-            if i % 3 != 0 {
-                continue;
-            }
-            let mut rgb_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> = ImageBuffer::new(1366, 768);
             let data = f.canvas.as_mut().unwrap();
 
-            // 复制像素数据（wl_shm_buffer使用ARGB8888格式，需要转换为RGBA）
-            for y in 0..768 {
-                for x in 0..1366 {
-                    let offset = (y as usize * 1366 * 4) + (x as usize * 4);
-                    // let a = data[offset];
-                    // let r = data[offset + 1];
-                    // let g = data[offset + 2];
-                    // let b = data[offset + 3];
-                    let r = data[offset + 1];
-                    let g = data[offset + 2];
-                    let b = data[offset + 3];
-                    rgb_buffer.put_pixel(x as u32, y as u32, Rgba([r, g, b, 255]));
-                }
-            }
+            // 转换 XRGB8888 数据到 RGBA8888 格式
+            let converted_data: Vec<u8> = data
+                .chunks_exact(4)
+                .flat_map(|pixel| {
+                    let b = pixel[0];
+                    let g = pixel[1];
+                    let r = pixel[2];
+                    vec![r, g, b, 0] // 转换为 RGBA 格式
+                })
+                .collect();
+
+            // 使用转换后的数据创建 ImageBuffer
+            let rgb_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> =
+                ImageBuffer::from_raw(1366, 768, converted_data).unwrap();
+
             // 创建帧并设置延迟
             let frame = image::Frame::new(rgb_buffer);
 
