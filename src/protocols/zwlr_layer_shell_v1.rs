@@ -27,7 +27,6 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                 proxy.ack_configure(serial);
                 proxy.set_size(width, height);
                 if app.action == Action::Init {
-                    debug!("layer show");
                     if app.wlctx.config.full_screen {
                         app.wlctx.no_freeze_attach_with_udata(*data);
                     } else {
@@ -39,6 +38,7 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                         app.action = Action::WaitPointerPress;
 
                         app.wlctx.layer_ready = 0;
+                        debug!("all layer configured, enter WaitPointerPress")
                     }
                 }
             }

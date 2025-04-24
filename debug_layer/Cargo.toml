@@ -1,0 +1,13 @@
+[package]
+name = "debug_layer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+env_logger = "0.11.8"
+log = "0.4.27"
+
+wayland-client = "0.31.8"
+wayland-protocols = {version="0.32.6", features = ["client", "unstable", "staging"]}
+wayland-protocols-wlr = { version = "0.3.6", features = ["client"] }
+smithay-client-toolkit = "0.19.2"
