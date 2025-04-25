@@ -80,10 +80,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 // let y = surface_y;
 
                 // 发送多个enter时候，只选择满足坐标约束的
-                debug!(
-                    "surface_x:{}, surface_y:{}, x:{}, y:{}",
-                    surface_x, surface_y, x, y
-                );
+                debug!("surface_x:{}, surface_y:{}", surface_x, surface_y);
                 if x >= 0.0
                     && y >= 0.0
                     && x <= foam_output.width as f64
@@ -226,7 +223,6 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     .as_ref()
                     .unwrap()
                     .calculate_pos(global_pos);
-                debug!("global_pos:{:?}", global_pos);
 
                 app.wlctx.pointer_helper.g_current_pos = Some(global_pos);
 
