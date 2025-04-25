@@ -1,3 +1,5 @@
+//! INFO: dispatch package for screen capture
+
 use std::collections::HashMap;
 
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};

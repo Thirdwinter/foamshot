@@ -1,3 +1,4 @@
+//! INFO: Define cli parameters, organize and convert cli parameters, and provide `FoamConfig` structure
 use chrono::Local;
 use clap::Parser;
 use directories::UserDirs;

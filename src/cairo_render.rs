@@ -1,3 +1,4 @@
+//! INFO: Simple wrapping of repeated drawing processes
 use cairo::{Context, ImageSurface};
 
 pub fn draw_base(canvas: &mut [u8], w: i32, h: i32) -> cairo::Context {

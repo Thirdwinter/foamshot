@@ -1,3 +1,6 @@
+//! The core of the program defines the `FoamShot` structure
+//! connects to the wayland display and executes event_loop
+//! provides the `run_main_loop` function
 use log::{debug, error};
 use smithay_client_toolkit::shm::Shm;
 use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
@@ -8,11 +11,13 @@ use crate::{
     notify::{self, NotificationLevel},
     save_helper, wayland_ctx,
 };
+
 #[derive(PartialEq, Eq)]
 #[allow(unused)]
+/// INFO: Define the output targets to fs, divided into screenshots and recordings
 pub enum UserTarget {
     Shot = 0,
-    Recorder = 1,
+    Recorder = 1, // TODO:
 }
 
 pub struct FoamShot {

@@ -1,3 +1,5 @@
+//! INFO: wl_pointer interface implementation
+
 use log::{debug, error};
 use wayland_client::protocol::wl_pointer;
 use wayland_client::{Dispatch, Proxy};

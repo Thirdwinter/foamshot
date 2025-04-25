@@ -1,9 +1,16 @@
+//! INFO: wl_keyboard interface implementation
+
 use log::debug;
 use wayland_client::protocol::wl_keyboard;
 use wayland_client::{Dispatch, Proxy};
 
 use crate::action::{Action, IsFreeze};
 use crate::foamcore::FoamShot;
+
+const KEY_F: u32 = 33;
+const KEY_ESC: u32 = 1;
+const KEY_A: u32 = 30;
+const KEY_S: u32 = 31;
 
 // TODO:
 #[allow(unused_variables)]
@@ -16,11 +23,6 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
         conn: &wayland_client::Connection,
         qh: &wayland_client::QueueHandle<Self>,
     ) {
-        const KEY_F: u32 = 33;
-        const KEY_ESC: u32 = 1;
-        const KEY_A: u32 = 30;
-        const KEY_S: u32 = 31;
-
         // 使用模式匹配替代多重if嵌套
         if let wl_keyboard::Event::Key {
             key,

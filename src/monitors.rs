@@ -1,3 +1,4 @@
+//! INFO: Defines the abstract `FoamMonitors` for physical displays and the fractional scaling manager `FoamScale`
 use cairo::{Context, ImageSurface};
 use log::debug;
 use smithay_client_toolkit::shm::slot::{self, Buffer, SlotPool};
@@ -26,30 +27,24 @@ pub struct FoamMonitors {
     pub id: usize,
     /// 显示器的命名，也许会有用
     pub name: String,
-
     pub output: Option<wl_output::WlOutput>,
     pub width: i32,
     pub height: i32,
-
     ///显示器 左上角 全局坐标 x
     pub global_x: i32,
     ///显示器 左上角 全局坐标 y
     pub global_y: i32,
     pub logical_width: i32,
     pub logical_height: i32,
-
     pub base_buffer: Option<Buffer>,
     // add freeze layer surfae to impl set_freeze
     pub surface: Option<wl_surface::WlSurface>,
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
-
     pub need_redraw: bool,
-
     pub pool: Option<slot::SlotPool>,
-
-    pub scale: Option<Scale>,
+    pub scale: Option<FoamScale>,
 }
 
 impl FoamMonitors {
@@ -108,17 +103,11 @@ impl FoamMonitors {
 
         if let Some((fm, _)) = fractional_manager {
             let fractional = fm.get_fractional_scale(surface, qh, id);
-            self.scale = Some(Scale::new_fractional(fractional, viewport));
+            self.scale = Some(FoamScale::new_fractional(fractional, viewport));
         } else {
             // TODO:
-            self.scale = Some(Scale::new_normal())
+            self.scale = Some(FoamScale::new_normal())
         }
-
-        // fractional scale
-        // let fractional = fractional_manager.get_fractional_scale(surface, qh, id);
-        // let viewport = viewporter.get_viewport(surface, qh, id);
-        // viewport.set_destination(self.logical_width, self.logical_height);
-        // self.scale = Some(Scale::new_fractional(fractional, viewport));
 
         let layer = zwlr_layer_shell_v1::ZwlrLayerShellV1::get_layer_surface(
             layer_shell,
@@ -155,6 +144,7 @@ impl FoamMonitors {
         surface.commit();
         self.base_buffer = Some(buffer)
     }
+
     pub fn clean_attach(&mut self) {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
@@ -166,6 +156,7 @@ impl FoamMonitors {
         surface.commit();
         self.base_buffer = Some(buffer)
     }
+
     pub fn no_freeze_attach(&mut self) {
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
@@ -281,12 +272,12 @@ impl FoamMonitors {
 }
 
 #[derive(Debug)]
-pub struct Scale {
+pub struct FoamScale {
     normal: u32,
     fractional: Option<(u32, WpFractionalScaleV1, WpViewport)>,
 }
 
-impl Scale {
+impl FoamScale {
     fn new_fractional(fractional_client: WpFractionalScaleV1, viewprot: WpViewport) -> Self {
         Self {
             normal: 1,
@@ -336,7 +327,7 @@ impl Scale {
     }
 }
 
-impl Drop for Scale {
+impl Drop for FoamScale {
     fn drop(&mut self) {
         #[allow(clippy::option_map_unit_fn)]
         self.fractional.as_ref().map(|(_, f, v)| {

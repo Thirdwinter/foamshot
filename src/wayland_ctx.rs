@@ -1,3 +1,4 @@
+//! INFO: common context
 use cairo::{Context, ImageSurface};
 use log::{debug, error};
 use smithay_client_toolkit::shm::{self, slot::SlotPool};

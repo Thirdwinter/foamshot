@@ -1,3 +1,5 @@
+//! INFO: zxdg_output_manager_v1 && zxdg_output_v1 interface implementation
+//! Through these, the physical layout of the display is obtained and applied in a multi-display environment
 use log::info;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols::xdg::shell::client::{xdg_surface, xdg_toplevel, xdg_wm_base};

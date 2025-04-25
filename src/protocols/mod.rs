@@ -1,3 +1,6 @@
+//! INFO: Implementation of the core (general) interface of the Wayland protocol
+//! `wl_pointer` and `wl_keyboard` are implemented separately
+
 mod keyboard;
 mod pointer;
 mod wp_cursor_shape_manager_v1;

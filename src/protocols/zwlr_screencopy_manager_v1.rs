@@ -1,3 +1,5 @@
+//! INFO: zwlr_screencopy_manager_v1 && zwlr_screencopy_frame_v1 interface implementation
+//! Used for screen frame capture
 use log::*;
 use smithay_client_toolkit::shm::slot::SlotPool;
 use wayland_client::protocol::wl_shm::Format;

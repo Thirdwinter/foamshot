@@ -1,3 +1,5 @@
+//! INFO: WpFractionalScaleV1 interface implementation
+
 use smithay_client_toolkit::delegate_simple;
 use wayland_client::QueueHandle;
 use wayland_protocols::wp::fractional_scale::v1::client::{
