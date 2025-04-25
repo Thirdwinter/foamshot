@@ -5,10 +5,15 @@ use smithay_client_toolkit::shm::{Shm, slot::SlotPool};
 use wayland_client::protocol::{
     wl_compositor, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_surface,
 };
-use wayland_client::{Connection, globals::registry_queue_init, protocol::wl_shm::Format};
+use wayland_client::{Connection, globals::registry_queue_init};
+use wayland_protocols::xdg::xdg_output::zv1::client::zxdg_output_manager_v1;
+use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1::Layer;
+use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_surface_v1::{
+    Anchor, KeyboardInteractivity,
+};
 use wayland_protocols_wlr::layer_shell::v1::client::{
-    zwlr_layer_shell_v1::{self, Layer},
-    zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity},
+    zwlr_layer_shell_v1::{self},
+    zwlr_layer_surface_v1::{self},
 };
 
 #[derive(Default)]
@@ -23,6 +28,8 @@ pub struct Data {
     pub pointer: Option<wl_pointer::WlPointer>,
     pub shm: Option<Shm>,
     pub pool: Option<SlotPool>,
+    pub xdgoutputmanager: Option<zxdg_output_manager_v1::ZxdgOutputManagerV1>,
+    pub is_configured: HashMap<usize, bool>,
 
     pub w: HashMap<usize, i32>,
     pub h: HashMap<usize, i32>,
@@ -39,6 +46,7 @@ impl Data {
             surface: Some(HashMap::new()),
             w: HashMap::new(),
             h: HashMap::new(),
+            is_configured: HashMap::new(),
             running: true,
             ..Default::default()
         }
@@ -60,52 +68,38 @@ fn main() {
     let shm = Shm::bind(&globals, &qh).expect("wl_shm is not available");
     data.pool = SlotPool::new(256 * 256, &shm).ok();
     data.shm = Some(shm);
+    event_queue.roundtrip(&mut data).unwrap();
 
-    event_queue.roundtrip(&mut data).expect("init failed");
-    event_queue.blocking_dispatch(&mut data).unwrap();
-
-    for (i, v) in data.output.as_ref().unwrap().iter() {
-        let ls = data.layer_shell.as_mut().unwrap();
-        let surface = data.surface.as_mut().unwrap().get_mut(i).unwrap();
+    for i in 0..data.output.as_ref().unwrap().len() {
+        let v = data.output.as_ref().unwrap().get(&i).unwrap();
+        let s = data.compositor.as_ref().unwrap().create_surface(&qh, i);
+        let ls = data.layer_shell.as_ref().unwrap();
         let layer = ls.get_layer_surface(
-            surface,
+            &s,
             Some(v),
-            Layer::Top,
+            Layer::Overlay,
             "debug_layer".to_string(),
             &qh,
-            *i,
+            i,
         );
-        layer.set_anchor(Anchor::all());
+        data.is_configured.insert(i, false);
+        layer.set_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right);
         layer.set_exclusive_zone(-1);
         layer.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
+        s.frame(&qh, i);
+        s.commit();
 
-        data.layer_surface.as_mut().unwrap().insert(*i, layer);
-        let w = data.w.get(i).unwrap();
-        let h = data.h.get(i).unwrap();
-        surface.damage(0, 0, *w, *h);
-        surface.commit();
+        data.layer_surface.as_mut().unwrap().insert(i, layer);
+        data.surface.as_mut().unwrap().insert(i, s);
     }
 
-    while data.layer_ready != data.output.as_mut().unwrap().len() {
-        event_queue.blocking_dispatch(&mut data).unwrap();
-    }
+    event_queue.roundtrip(&mut data).unwrap();
 
-    for (i, _v) in data.output.as_ref().unwrap().iter() {
-        let surface = data.surface.as_mut().unwrap().get_mut(i).unwrap();
-        let w = data.w.get(i).unwrap();
-        let h = data.h.get(i).unwrap();
-        let pool = data.pool.as_mut().unwrap();
+    // event_queue
+    //     .blocking_dispatch(&mut data)
+    //     .expect("init failed");
 
-        let (buffer, canvas) = pool
-            .create_buffer(*w, *h, *w * 4, Format::Argb8888)
-            .unwrap();
-        canvas.fill(100);
-        buffer.attach_to(surface).unwrap();
-        surface.damage(0, 0, *w, *h);
-        surface.commit();
-    }
-
-    while data.running {
+    loop {
         event_queue.blocking_dispatch(&mut data).unwrap();
     }
 }

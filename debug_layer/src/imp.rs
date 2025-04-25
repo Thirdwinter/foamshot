@@ -4,14 +4,20 @@ use wayland_client::{
     Connection, Dispatch, Proxy, QueueHandle,
     globals::GlobalListContents,
     protocol::{
-        wl_compositor, wl_keyboard, wl_output, wl_pointer,
+        wl_callback, wl_compositor, wl_keyboard, wl_output, wl_pointer,
         wl_registry::{self},
-        wl_seat, wl_surface,
+        wl_seat,
+        wl_shm::Format,
+        wl_surface,
     },
+};
+use wayland_protocols::xdg::xdg_output::zv1::client::{
+    zxdg_output_manager_v1::{self, ZxdgOutputManagerV1},
+    zxdg_output_v1,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{self, ZwlrLayerShellV1},
-    zwlr_layer_surface_v1,
+    zwlr_layer_surface_v1::{self},
 };
 
 use crate::Data;
@@ -42,6 +48,14 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Data {
                             app.compositor = Some(compositor);
                         }
                     }
+                    // 动态管理 outputs
+                    _ if interface_name == wl_output::WlOutput::interface().name => {
+                        let outputs = app.output.as_mut().unwrap();
+                        let index = outputs.len();
+                        outputs.insert(index, proxy.bind(name, version, qh, index));
+                        debug!("interface name: {}, index: {}", interface_name, index);
+                    }
+
                     // Seat 绑定及相关资源获取
                     _ if interface_name == wl_seat::WlSeat::interface().name => {
                         if app.seat.is_none() {
@@ -53,12 +67,6 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Data {
                             app.seat = Some(seat);
                         }
                     }
-                    // 动态管理 outputs
-                    _ if interface_name == wl_output::WlOutput::interface().name => {
-                        let outputs = app.output.as_mut().unwrap();
-                        let index = outputs.len();
-                        outputs.insert(index, proxy.bind(name, version, qh, index));
-                    }
                     // Layer shell 绑定
                     _ if interface_name == ZwlrLayerShellV1::interface().name => {
                         if app.layer_shell.is_none() {
@@ -66,92 +74,18 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Data {
                             app.layer_shell = Some(layer_shell);
                         }
                     }
+
+                    _ if interface_name == ZxdgOutputManagerV1::interface().name => {
+                        if app.xdgoutputmanager.is_none() {
+                            let x = proxy.bind(name, version, qh, ());
+                            app.xdgoutputmanager = Some(x);
+                        }
+                    }
                     _ => (),
                 }
             }
             wl_registry::Event::GlobalRemove { name: _ } => {}
             _ => (),
-        }
-    }
-}
-
-#[allow(unused_variables)]
-impl Dispatch<wl_compositor::WlCompositor, ()> for Data {
-    fn event(
-        state: &mut Self,
-        proxy: &wl_compositor::WlCompositor,
-        event: <wl_compositor::WlCompositor as wayland_client::Proxy>::Event,
-        data: &(),
-        conn: &wayland_client::Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
-    ) {
-    }
-}
-
-#[allow(unused_variables)]
-impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for Data {
-    fn event(
-        app: &mut Self,
-        proxy: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
-        event: <zwlr_layer_shell_v1::ZwlrLayerShellV1 as Proxy>::Event,
-        data: &(),
-        conn: &wayland_client::Connection,
-        qh: &wayland_client::QueueHandle<Self>,
-    ) {
-    }
-}
-
-#[allow(unused_variables)]
-impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for Data {
-    fn event(
-        app: &mut Self,
-        proxy: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
-        event: <zwlr_layer_surface_v1::ZwlrLayerSurfaceV1 as Proxy>::Event,
-        data: &usize,
-        _conn: &wayland_client::Connection,
-        _qh: &wayland_client::QueueHandle<Self>,
-    ) {
-        match event {
-            zwlr_layer_surface_v1::Event::Configure {
-                serial,
-                width,
-                height,
-            } => {
-                debug!("layer: {} configured", data);
-                proxy.ack_configure(serial);
-                app.layer_ready += 1;
-            }
-            zwlr_layer_surface_v1::Event::Closed => {
-                proxy.destroy();
-            }
-            _ => {}
-        }
-    }
-}
-
-#[allow(unused_variables)]
-impl Dispatch<wl_keyboard::WlKeyboard, ()> for Data {
-    fn event(
-        state: &mut Self,
-        proxy: &wl_keyboard::WlKeyboard,
-        event: <wl_keyboard::WlKeyboard as Proxy>::Event,
-        data: &(),
-        conn: &Connection,
-        qhandle: &QueueHandle<Self>,
-    ) {
-        const KEY_ESC: u32 = 1;
-
-        if let wl_keyboard::Event::Key {
-            key,
-            state: wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed),
-            ..
-        } = event
-        {
-            debug!("Key pressed: {}", key);
-
-            if key == KEY_ESC {
-                state.running = false
-            }
         }
     }
 }
@@ -190,13 +124,6 @@ impl Dispatch<wl_output::WlOutput, usize> for Data {
                     "wl_output::Event::Geometry => output:{} | x:{} | y:{} | physical_width:{} | physical_height:{} | transform:{:?}",
                     data, x, y, physical_width, physical_height, transform
                 );
-
-                let Some(compositor) = &app.compositor else {
-                    return;
-                };
-
-                let s = app.surface.as_mut().unwrap();
-                s.insert(*data, compositor.create_surface(qh, *data));
             }
             _ => {}
         };
@@ -204,27 +131,76 @@ impl Dispatch<wl_output::WlOutput, usize> for Data {
 }
 
 #[allow(unused_variables)]
-impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for Data {
+impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for Data {
     fn event(
-        state: &mut Self,
-        proxy: &wl_registry::WlRegistry,
-        event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
-        data: &GlobalListContents,
-        conn: &wayland_client::Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
+        app: &mut Self,
+        proxy: &zwlr_layer_surface_v1::ZwlrLayerSurfaceV1,
+        event: <zwlr_layer_surface_v1::ZwlrLayerSurfaceV1 as Proxy>::Event,
+        data: &usize,
+        _conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
     ) {
+        match event {
+            zwlr_layer_surface_v1::Event::Configure {
+                serial,
+                width,
+                height,
+            } => {
+                if *app.is_configured.get(data).unwrap() {
+                    return;
+                }
+                debug!("layer: {} configured", data);
+                proxy.ack_configure(serial);
+                app.layer_ready += 1;
+
+                let surface = app.surface.as_mut().unwrap().get_mut(data).unwrap();
+                let w = app.w.get(data).unwrap();
+                let h = app.h.get(data).unwrap();
+                let pool = app.pool.as_mut().unwrap();
+
+                let (buffer, canvas) = pool
+                    .create_buffer(*w, *h, *w * 4, Format::Argb8888)
+                    .unwrap();
+                canvas.fill(0);
+                buffer.attach_to(surface).unwrap();
+                surface.damage(0, 0, *w, *h);
+                surface.frame(qh, *data);
+                surface.commit();
+                *app.is_configured.get_mut(data).unwrap() = true;
+            }
+            zwlr_layer_surface_v1::Event::Closed => {
+                proxy.destroy();
+            }
+            _ => {}
+        }
     }
 }
+
 #[allow(unused_variables)]
-impl Dispatch<wl_seat::WlSeat, ()> for Data {
+impl Dispatch<wl_callback::WlCallback, usize> for Data {
     fn event(
-        state: &mut Self,
-        proxy: &wl_seat::WlSeat,
-        event: <wl_seat::WlSeat as wayland_client::Proxy>::Event,
-        data: &(),
-        conn: &wayland_client::Connection,
-        qhandle: &wayland_client::QueueHandle<Self>,
+        app: &mut Self,
+        proxy: &wl_callback::WlCallback,
+        event: <wl_callback::WlCallback as Proxy>::Event,
+        data: &usize,
+        conn: &Connection,
+        qh: &QueueHandle<Self>,
     ) {
+        if let wl_callback::Event::Done { callback_data } = event {
+            let surface = app.surface.as_mut().unwrap().get_mut(data).unwrap();
+            let w = app.w.get(data).unwrap();
+            let h = app.h.get(data).unwrap();
+            let pool = app.pool.as_mut().unwrap();
+
+            let (buffer, canvas) = pool
+                .create_buffer(*w, *h, *w * 4, Format::Argb8888)
+                .unwrap();
+            canvas.fill(100);
+            buffer.attach_to(surface).unwrap();
+            surface.damage(0, 0, *w, *h);
+            surface.commit();
+        }
+        // todo!()
     }
 }
 
@@ -274,6 +250,114 @@ impl Dispatch<wl_pointer::WlPointer, ()> for Data {
                 surface_index, surface_x, surface_y
             );
         }
+    }
+}
+
+#[allow(unused_variables)]
+impl Dispatch<wl_keyboard::WlKeyboard, ()> for Data {
+    fn event(
+        state: &mut Self,
+        proxy: &wl_keyboard::WlKeyboard,
+        event: <wl_keyboard::WlKeyboard as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        const KEY_ESC: u32 = 1;
+
+        if let wl_keyboard::Event::Key {
+            key,
+            state: wayland_client::WEnum::Value(wl_keyboard::KeyState::Pressed),
+            ..
+        } = event
+        {
+            debug!("Key pressed: {}", key);
+
+            if key == KEY_ESC {
+                std::process::exit(0);
+            }
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl Dispatch<wl_seat::WlSeat, ()> for Data {
+    fn event(
+        state: &mut Self,
+        proxy: &wl_seat::WlSeat,
+        event: <wl_seat::WlSeat as wayland_client::Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+    }
+}
+
+#[allow(unused_variables)]
+impl Dispatch<zxdg_output_v1::ZxdgOutputV1, usize> for Data {
+    fn event(
+        state: &mut Self,
+        proxy: &zxdg_output_v1::ZxdgOutputV1,
+        event: <zxdg_output_v1::ZxdgOutputV1 as Proxy>::Event,
+        data: &usize,
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+        if let zxdg_output_v1::Event::Name { name } = event {
+            debug!("output: {}, name: {}", data, name);
+        }
+    }
+}
+
+#[allow(unused_variables)]
+impl Dispatch<zxdg_output_manager_v1::ZxdgOutputManagerV1, ()> for Data {
+    fn event(
+        state: &mut Self,
+        proxy: &zxdg_output_manager_v1::ZxdgOutputManagerV1,
+        event: <zxdg_output_manager_v1::ZxdgOutputManagerV1 as Proxy>::Event,
+        data: &(),
+        conn: &Connection,
+        qhandle: &QueueHandle<Self>,
+    ) {
+    }
+}
+
+#[allow(unused_variables)]
+impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for Data {
+    fn event(
+        state: &mut Self,
+        proxy: &wl_registry::WlRegistry,
+        event: <wl_registry::WlRegistry as wayland_client::Proxy>::Event,
+        data: &GlobalListContents,
+        conn: &wayland_client::Connection,
+        qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+    }
+}
+
+#[allow(unused_variables)]
+impl Dispatch<wl_compositor::WlCompositor, ()> for Data {
+    fn event(
+        state: &mut Self,
+        proxy: &wl_compositor::WlCompositor,
+        event: <wl_compositor::WlCompositor as wayland_client::Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qhandle: &wayland_client::QueueHandle<Self>,
+    ) {
+    }
+}
+
+#[allow(unused_variables)]
+impl Dispatch<zwlr_layer_shell_v1::ZwlrLayerShellV1, ()> for Data {
+    fn event(
+        app: &mut Self,
+        proxy: &zwlr_layer_shell_v1::ZwlrLayerShellV1,
+        event: <zwlr_layer_shell_v1::ZwlrLayerShellV1 as Proxy>::Event,
+        data: &(),
+        conn: &wayland_client::Connection,
+        qh: &wayland_client::QueueHandle<Self>,
+    ) {
     }
 }
 
