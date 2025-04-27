@@ -8,12 +8,19 @@ use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::
 /// INFO: The current behavior, or state, of the program
 pub enum Action {
     #[default]
+    /// before layer surface configure
     Init,
+    /// All layer surfaces are configured, waiting for the mouse to be pressed
     WaitPointerPress,
+    /// Toggle current screen freeze mode/clear selection
     ToggleFreeze(IsFreeze),
+    /// Drag the mouse to draw a selection rectangle
     OnDraw,
+    /// With `--edit` arg, it means modifying the selection rectangle
     OnEdit(EditAction),
+    /// TODO: Loop screen copy to recorder
     OnRecorder,
+    /// Encoding, output to file
     Output,
     Exit,
 }

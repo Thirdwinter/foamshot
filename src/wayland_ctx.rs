@@ -1,6 +1,6 @@
 //! INFO: common context
 use cairo::{Context, ImageSurface};
-use log::{debug, error};
+use log::debug;
 use smithay_client_toolkit::shm::{self, slot::SlotPool};
 use wayland_client::{
     QueueHandle,
@@ -44,7 +44,8 @@ pub struct WaylandCtx {
     pub fractional_manager: Option<(WpFractionalScaleManagerV1, u32)>,
 
     pub current_index: Option<usize>,
-    /// FIX: 不符合预期的pointer事件，用于记录其中的 surface 索引
+    /// NOTE: 不符合预期的pointer事件，用于记录其中的 surface 索引
+    /// 我必须立刻 fuck 一些合成器，随意发送的 pointer enter event 增加了很多工作量
     pub unknown_index: Option<usize>,
 
     pub current_freeze: bool,
@@ -76,14 +77,28 @@ impl WaylandCtx {
         }
     }
     pub fn set_one_max(&mut self, target: usize) {
-        // 遍历 Vec 的索引和元素
-        for (index, foam_output) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
-            if index == target {
-                foam_output.max_rect();
-            } else {
-                foam_output.clean_rect();
-            }
-        }
+        // // 遍历 Vec 的索引和元素
+        // for (index, foam_output) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
+        //     if index == target {
+        //         foam_output.max_rect();
+        //     } else {
+        //         foam_output.clean_rect();
+        //     }
+        // }
+
+        // 我觉得这样高级（
+        self.foam_outputs
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, foam_output)| {
+                if index == target {
+                    foam_output.max_rect();
+                } else {
+                    foam_output.clean_rect();
+                }
+            });
     }
 
     pub fn set_cursor_shape(
@@ -97,17 +112,21 @@ impl WaylandCtx {
     }
 
     pub fn init_base_layers(&mut self) {
-        for v in self.foam_outputs.as_mut().unwrap().iter_mut() {
-            v.init_layer(
-                &self.layer_shell.as_ref().unwrap().0,
-                self.qh.as_ref().unwrap(),
-                self.viewporter.clone().unwrap().0,
-                // WARN: THIS WAY IT REQUIRES THE COMPOSITOR TO IMPLEMENT FRACTIONAL SCALE
-                // OR ELSE THE UNWRAP IS GONNA CRASH THE PROGRAM
-                // TODO: Add fallback
-                self.fractional_manager.clone(),
-            );
-        }
+        self.foam_outputs
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .for_each(|v| {
+                v.init_layer(
+                    &self.layer_shell.as_ref().unwrap().0,
+                    self.qh.as_ref().unwrap(),
+                    self.viewporter.clone().unwrap().0,
+                    // WARN: THIS WAY IT REQUIRES THE COMPOSITOR TO IMPLEMENT FRACTIONAL SCALE
+                    // OR ELSE THE UNWRAP IS GONNA CRASH THE PROGRAM
+                    // TODO: Add fallback
+                    self.fractional_manager.clone(),
+                );
+            });
     }
 
     /// 重新将缓冲区附加到surface，生成新的一帧，此处仅可附加 `freeze`/`no_freeze` 两种的内容
@@ -140,9 +159,13 @@ impl WaylandCtx {
 
     /// 用一个空的buffer附加到surface，使屏幕恢复正常状态，用来 toggle freeze 前清空屏幕以便进行copy
     pub fn unset_freeze(&mut self) {
-        for v in self.foam_outputs.as_mut().unwrap().iter_mut() {
-            v.clean_attach();
-        }
+        self.foam_outputs
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .for_each(|v| {
+                v.clean_attach();
+            });
     }
 
     pub fn no_freeze_attach_with_udata(&mut self, udata: usize) {
@@ -159,30 +182,20 @@ impl WaylandCtx {
     /// 所有输出设备发起全屏捕获请求
     pub fn request_screencopy(&mut self) {
         debug!("发起屏幕copy请求");
-        let _screencopy_manager = if let Some((ref manager, _)) = self.scm.manager {
-            manager
-        } else {
-            error!("screencopy_manager 未初始化");
-            return;
-        };
-
-        let qh = if let Some(ref qh) = self.qh {
-            qh
-        } else {
-            error!("QueueHandle 未初始化");
-            return;
-        };
-
         // 遍历所有 outputs
-        let foam_outputs = self.foam_outputs.as_mut().unwrap();
-        for (index, foam_output) in foam_outputs.iter_mut().enumerate() {
-            self.scm.request_copy_one(
-                self.config.cursor,
-                foam_output.output.as_ref().unwrap(),
-                qh,
-                index,
-            );
-        }
+        self.foam_outputs
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, m)| {
+                self.scm.request_copy_one(
+                    self.config.cursor,
+                    m.output.as_ref().unwrap(),
+                    self.qh.as_ref().unwrap(),
+                    i,
+                );
+            });
     }
     /// 通过 pointer_helper 坐标计算全局父矩形
     pub fn compute_global_rect(&mut self) {
@@ -319,14 +332,19 @@ impl WaylandCtx {
 
     /// 在wl_callback中被调用，为需要重绘的输出更新下一帧
     pub fn update_select_region(&mut self) {
-        for (i, v) in self.foam_outputs.as_mut().unwrap().iter_mut().enumerate() {
-            if !v.need_redraw {
-                continue;
-            }
-            let base_canvas = self.scm.base_canvas.as_mut().unwrap().get_mut(&i).unwrap();
+        self.foam_outputs
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+            .for_each(|(i, v)| {
+                if !v.need_redraw {
+                    return;
+                }
+                let base_canvas = self.scm.base_canvas.as_mut().unwrap().get_mut(&i).unwrap();
 
-            v.update_select_subrect(base_canvas, self.current_freeze);
-        }
+                v.update_select_subrect(base_canvas, self.current_freeze);
+            });
     }
 
     pub fn storage_copy_canvas(&mut self) {

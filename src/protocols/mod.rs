@@ -275,10 +275,9 @@ impl Dispatch<wl_surface::WlSurface, usize> for FoamShot {
     ) {
         match event {
             wl_surface::Event::PreferredBufferTransform { transform } => {
-                // NOTE: IDK WHAT IT DOES
-                // if let Ok(t) = transform.into_result() {
-                //     proxy.set_buffer_transform(t);
-                // }
+                if let Ok(t) = transform.into_result() {
+                    proxy.set_buffer_transform(t);
+                }
             }
             wl_surface::Event::PreferredBufferScale { factor } => {
                 let mut foam_output = app.wlctx.foam_outputs.as_mut().unwrap().get_mut(*data);

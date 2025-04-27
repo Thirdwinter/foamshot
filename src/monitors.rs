@@ -34,7 +34,9 @@ pub struct FoamMonitors {
     pub global_x: i32,
     ///显示器 左上角 全局坐标 y
     pub global_y: i32,
+    /// 这应该是计算了缩放的宽
     pub logical_width: i32,
+    /// 这应该是计算了缩放的高
     pub logical_height: i32,
     pub base_buffer: Option<Buffer>,
     // add freeze layer surfae to impl set_freeze
