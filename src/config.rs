@@ -158,25 +158,40 @@ impl FoamConfig {
             dir_path.clone()
         };
 
-        // 处理文件名
-        let mut final_name = String::from(filename);
+        // 处理文件名：提取纯文件名部分
+        let filename = Path::new(filename)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("foamshot.png");
+
+        // 分离主名和扩展名
+        let (stem, ext) = {
+            let path = Path::new(filename);
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("foamshot");
+            let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("png");
+            (stem, ext)
+        };
+
+        // 查找可用的文件名
         let mut counter = 0;
+        #[allow(unused_assignments)]
+        let mut final_name = String::new();
 
-        // 获取文件名和扩展名
-        let stem = Path::new(filename)
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("foamshot");
+        loop {
+            let candidate = if counter == 0 {
+                format!("{}.{}", stem, ext)
+            } else {
+                format!("{}-{}.{}", stem, counter, ext)
+            };
 
-        let ext = Path::new(filename)
-            .extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("png");
-
-        // 检查文件是否存在，如果存在则添加递增的数字
-        while final_path.join(&final_name).exists() {
+            if !final_path.join(&candidate).exists() {
+                final_name = candidate;
+                break;
+            }
             counter += 1;
-            final_name = format!("{}-{}.{}", stem, counter, ext);
         }
 
         (final_path, final_name)
