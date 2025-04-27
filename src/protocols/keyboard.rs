@@ -11,6 +11,7 @@ const KEY_F: u32 = 33;
 const KEY_ESC: u32 = 1;
 const KEY_A: u32 = 30;
 const KEY_S: u32 = 31;
+const KEY_M: u32 = 50;
 
 // TODO:
 #[allow(unused_variables)]
@@ -69,6 +70,12 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                         std::process::exit(0);
                     }
                 },
+                KEY_M => {
+                    debug!(
+                        "current pos: {:?} g_rect: {:?}",
+                        app.wlctx.pointer_helper.g_current_pos, app.wlctx.global_rect
+                    )
+                }
                 _ => {}
             }
         }

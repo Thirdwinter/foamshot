@@ -99,10 +99,12 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                         .start_index
                         .get_or_insert(surface_index);
 
+                    let sp = foam_output.scale.as_ref().unwrap().calculate_pos((x, y));
                     // 鼠标未移动时进行初始化
                     app.wlctx.pointer_helper.g_current_pos.get_or_insert((
-                        x + foam_output.global_x as f64,
-                        y + foam_output.global_y as f64,
+                        // foam_output.scale.as_ref().unwrap().calculate_pos((x, y))
+                        sp.0 + foam_output.global_x as f64,
+                        sp.1 + foam_output.global_y as f64,
                     ));
                 }
             }
@@ -212,13 +214,12 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 );
 
                 // TEST: 先凑合着
-                let global_pos = start_output
-                    .scale
-                    .as_ref()
-                    .unwrap()
-                    .calculate_pos(global_pos);
+                let sp = start_output.scale.as_ref().unwrap().calculate_pos((x, y));
 
-                app.wlctx.pointer_helper.g_current_pos = Some(global_pos);
+                app.wlctx.pointer_helper.g_current_pos = Some((
+                    sp.0 + start_output.global_x as f64,
+                    sp.1 + start_output.global_y as f64,
+                ));
 
                 match app.action {
                     Action::OnDraw => {

@@ -1,5 +1,6 @@
 //! INFO: WpFractionalScaleV1 interface implementation
 
+use log::debug;
 use smithay_client_toolkit::delegate_simple;
 use wayland_client::QueueHandle;
 use wayland_protocols::wp::fractional_scale::v1::client::{
@@ -19,6 +20,7 @@ impl wayland_client::Dispatch<WpFractionalScaleV1, usize> for FoamShot {
         _qh: &QueueHandle<FoamShot>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
+            debug!("wp_fractional_scale_v1::Event::PreferredScale: {}", scale);
             let mut foam_output = app.wlctx.foam_outputs.as_mut().unwrap().get_mut(*data);
             foam_output
                 .as_mut()

@@ -280,14 +280,21 @@ impl Dispatch<wl_surface::WlSurface, usize> for FoamShot {
                 }
             }
             wl_surface::Event::PreferredBufferScale { factor } => {
-                let mut foam_output = app.wlctx.foam_outputs.as_mut().unwrap().get_mut(*data);
-                foam_output
-                    .as_mut()
-                    .unwrap()
-                    .scale
-                    .as_mut()
-                    .unwrap()
-                    .update_normal(factor as u32);
+                // let mut foam_output = app.wlctx.foam_outputs.as_mut().unwrap().get_mut(*data);
+                // foam_output
+                //     .as_mut()
+                //     .unwrap()
+                //     .surface
+                //     .as_mut()
+                //     .unwrap()
+                //     .set_buffer_scale(factor);
+                // foam_output
+                //     .as_mut()
+                //     .unwrap()
+                //     .scale
+                //     .as_mut()
+                //     .unwrap()
+                //     .update_normal(factor as u32);
                 // NOTE: WE DO NOT CHANGE BUFFER SCALE, USE ViewPorter INSTEAD.
                 // proxy.set_buffer_scale(factor);
             }
