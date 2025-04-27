@@ -1,3 +1,6 @@
+//! The core of the program defines the `FoamShot` structure
+//! connects to the wayland display and executes event_loop
+//! provides the `run_main_loop` function
 use log::{debug, error};
 use smithay_client_toolkit::shm::Shm;
 use wayland_client::{Connection, EventQueue, globals::registry_queue_init};
@@ -8,11 +11,13 @@ use crate::{
     notify::{self, NotificationLevel},
     save_helper, wayland_ctx,
 };
+
 #[derive(PartialEq, Eq)]
 #[allow(unused)]
+/// INFO: Define the output targets to fs, divided into screenshots and recordings
 pub enum UserTarget {
     Shot = 0,
-    Recorder = 1,
+    Recorder = 1, // TODO:
 }
 
 pub struct FoamShot {
@@ -69,6 +74,18 @@ pub fn run_main_loop() {
             Action::OnDraw => {}
             Action::OnEdit(_a) => {}
             Action::Output => {
+                // 提前Drop掉layer surface，视觉观感更好
+                shot_foam
+                    .wlctx
+                    .foam_outputs
+                    .as_mut()
+                    .unwrap()
+                    .iter_mut()
+                    .for_each(|m| {
+                        m.layer_surface.as_mut().unwrap().destroy();
+                    });
+
+                // 如果当前的屏幕状态没有被冻结，那么输出前需要进行一次copy来获取当前的屏幕数据
                 if !shot_foam.wlctx.current_freeze {
                     shot_foam.wait_copy(&mut event_queue);
                 }
@@ -78,16 +95,16 @@ pub fn run_main_loop() {
                             shot_foam.send_error("image saved error");
                             log::error!("save to png error: {}", e);
                         }
-                        save_helper::save_to_wl_clipboard(&mut shot_foam.wlctx).unwrap();
                     }
                     ImageType::Jpg => {
                         if let Err(e) = save_helper::save_to_jpg(&mut shot_foam.wlctx, 100) {
                             shot_foam.send_error("image saved error");
                             log::error!("save to jpg error: {}", e);
                         }
-                        save_helper::save_to_wl_clipboard(&mut shot_foam.wlctx).ok();
                     }
                 }
+                save_helper::save_to_wl_clipboard(&mut shot_foam.wlctx).unwrap();
+
                 shot_foam.send_save_info();
                 std::process::exit(0)
                 // shot_foam.action = Action::Exit
@@ -143,6 +160,7 @@ impl FoamShot {
         self.wlctx.scm.copy_ready = 0;
         // 存储 copy 到的数据
         self.wlctx.storage_copy_canvas();
+        // self.target = UserTarget::Recorder
     }
 
     /// TODO: 循环录制

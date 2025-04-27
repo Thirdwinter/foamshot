@@ -1,3 +1,4 @@
+//! INFO: Define cli parameters, organize and convert cli parameters, and provide `FoamConfig` structure
 use chrono::Local;
 use clap::Parser;
 use directories::UserDirs;
@@ -135,10 +136,16 @@ impl FoamConfig {
         path
     }
 
-    fn validate_path(dir_path: &PathBuf, filename: &str) -> (PathBuf, String) {
+    fn validate_path(dir_path: &Path, filename: &str) -> (PathBuf, String) {
+        // 转换相对路径为绝对路径
+        let dir_path = match dir_path.canonicalize() {
+            Ok(abs_path) => abs_path,
+            Err(_) => dir_path.to_path_buf(), // 如果转换失败，保留原路径
+        };
+
         // 验证并创建目录
         let final_path = if !dir_path.exists() {
-            match fs::create_dir_all(dir_path) {
+            match fs::create_dir_all(&dir_path) {
                 Ok(_) => dir_path.clone(),
                 Err(_) => {
                     // 如果创建失败，使用默认路径

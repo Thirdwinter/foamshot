@@ -1,3 +1,5 @@
+//! INFO: Provides data processing for the dragged rectangle during user interaction
+
 use crate::action::{Action, EditAction};
 
 #[derive(Clone, Debug)]
@@ -156,9 +158,7 @@ impl SelectRect {
                 }
                 _ => act,
             },
-            _ => {
-                Action::OnEdit(EditAction::None)
-            }
+            _ => Action::OnEdit(EditAction::None),
         }
     }
 

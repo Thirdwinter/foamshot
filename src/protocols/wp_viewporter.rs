@@ -1,3 +1,5 @@
+//! INFO: wp_viewporter && wp_viewport interface implementation
+
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
 

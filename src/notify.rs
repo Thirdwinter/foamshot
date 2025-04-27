@@ -1,3 +1,4 @@
+//! INFO: Provides a wrapper for Dbus notify to send possible information, relying on `notify-send`
 use std::process::Command;
 
 pub enum NotificationLevel {

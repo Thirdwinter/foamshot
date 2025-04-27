@@ -13,7 +13,8 @@ mod wayland_ctx;
 mod zwlr_screencopy_mode;
 
 fn main() {
+    // Init the env logger
     env_logger::init();
-
+    // run the main event loop
     foamcore::run_main_loop();
 }

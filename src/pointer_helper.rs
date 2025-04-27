@@ -1,3 +1,4 @@
+//! INFO: Defines the wayland pointer wrapper, including the use of wp_cursor_shape
 use std::error::Error;
 
 use wayland_client::QueueHandle;

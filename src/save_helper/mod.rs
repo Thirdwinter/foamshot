@@ -1,3 +1,4 @@
+//! INFO: Provides wrappers for output to fs
 mod common;
 // mod ffmpeg;
 mod jpg;

@@ -1,3 +1,5 @@
+//! INFO: wp_cursor_shape_manager_v1 && wp_cursor_shape_device_v1 interface implementation
+
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols::wp::cursor_shape::v1::client::{
     wp_cursor_shape_device_v1, wp_cursor_shape_manager_v1,

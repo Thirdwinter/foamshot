@@ -1,3 +1,5 @@
+use image::{ImageBuffer, Rgba, codecs::gif::GifEncoder};
+use log::debug;
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::protocol::wl_shm::Format;
 
@@ -62,5 +64,38 @@ impl FrameQueue {
         self.current_buffer = None;
         self.is_copy = true;
         // println!("len: {}", self.f.iter().len())
+    }
+
+    pub fn to_gif(&mut self, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // 创建输出文件
+        let file = std::fs::File::create(output_path)?;
+        let mut encoder = GifEncoder::new_with_speed(file, 30);
+        for (i, f) in self.f.iter_mut().enumerate() {
+            let data = f.canvas.as_mut().unwrap();
+
+            // 转换 XRGB8888 数据到 RGBA8888 格式
+            let converted_data: Vec<u8> = data
+                .chunks_exact(4)
+                .flat_map(|pixel| {
+                    let b = pixel[0];
+                    let g = pixel[1];
+                    let r = pixel[2];
+                    vec![r, g, b, 0] // 转换为 RGBA 格式
+                })
+                .collect();
+
+            // 使用转换后的数据创建 ImageBuffer
+            let rgb_buffer: ImageBuffer<Rgba<u8>, Vec<u8>> =
+                ImageBuffer::from_raw(1366, 768, converted_data).unwrap();
+
+            // 创建帧并设置延迟
+            let frame = image::Frame::new(rgb_buffer);
+
+            // 编码当前帧
+            debug!("encode_frame: {}", i);
+            encoder.encode_frame(frame)?;
+        }
+
+        Ok(())
     }
 }

@@ -1,11 +1,7 @@
 [package]
-name = "foamshot"
-version = "0.2.3"
+name = "debug_layer"
+version = "0.1.0"
 edition = "2024"
-
-[profile.release]
-strip = true
-lto = true
 
 [dependencies]
 env_logger = "0.11.8"
@@ -15,9 +11,3 @@ wayland-client = "0.31.8"
 wayland-protocols = {version="0.32.6", features = ["client", "unstable", "staging"]}
 wayland-protocols-wlr = { version = "0.3.6", features = ["client"] }
 smithay-client-toolkit = "0.19.2"
-cairo-rs = {version ="0.20.7", features = ["png"], default-features = false}
-
-directories = "6.0.0"
-clap = { version = "4.5.35", features = ["derive"] }
-chrono = "0.4.40"
-image = "0.25.6"

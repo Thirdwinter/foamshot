@@ -15,43 +15,49 @@ pub struct CaptureInfo {
 pub fn calculate_capture_info(wl_ctx: &WaylandCtx) -> Result<Option<CaptureInfo>, Box<dyn Error>> {
     let outputs = wl_ctx.foam_outputs.as_ref().ok_or("未初始化输出设备")?;
 
-    let mut active_info = Vec::new();
-    let mut bounds: Option<(i32, i32, i32, i32)> = None;
+    let (bounds, active_info): (Option<(i32, i32, i32, i32)>, Vec<_>) = outputs
+        .iter()
+        .filter_map(|output| {
+            output.subrect.as_ref().map(|rect| {
+                let global_x = output.global_x + rect.relative_min_x;
+                let global_y = output.global_y + rect.relative_min_y;
+                let right = global_x + rect.width;
+                let bottom = global_y + rect.height;
 
-    for output in outputs {
-        let Some(rect) = &output.subrect else {
-            continue;
-        };
+                (
+                    (global_x, global_y, right, bottom),
+                    (rect.monitor_id, global_x, global_y),
+                )
+            })
+        })
+        .fold(
+            (None, Vec::new()),
+            |(bounds, mut active_info), (rect_bounds, info)| {
+                let bounds = Some(match bounds {
+                    Some((px, py, pr, pb)) => (
+                        px.min(rect_bounds.0),
+                        py.min(rect_bounds.1),
+                        pr.max(rect_bounds.2),
+                        pb.max(rect_bounds.3),
+                    ),
+                    None => rect_bounds,
+                });
+                active_info.push(info);
+                (bounds, active_info)
+            },
+        );
 
-        let global_x = output.global_x + rect.relative_min_x;
-        let global_y = output.global_y + rect.relative_min_y;
-        let right = global_x + rect.width;
-        let bottom = global_y + rect.height;
-
-        bounds = Some(match bounds {
-            Some((px, py, pr, pb)) => (
-                px.min(global_x),
-                py.min(global_y),
-                pr.max(right),
-                pb.max(bottom),
-            ),
-            None => (global_x, global_y, right, bottom),
-        });
-
-        active_info.push((rect.monitor_id, global_x, global_y));
-    }
-
-    let Some((x, y, r, b)) = bounds else {
-        return Ok(None);
-    };
-
-    Ok(Some(CaptureInfo {
-        min_x: x,
-        min_y: y,
-        total_width: (r - x) as u32,
-        total_height: (b - y) as u32,
-        monitor_ids: active_info.iter().map(|(id, _, _)| *id).collect(),
-    }))
+    bounds
+        .map(|(x, y, r, b)| {
+            Ok(Some(CaptureInfo {
+                min_x: x,
+                min_y: y,
+                total_width: (r - x) as u32,
+                total_height: (b - y) as u32,
+                monitor_ids: active_info.iter().map(|(id, _, _)| *id).collect(),
+            }))
+        })
+        .unwrap_or(Ok(None))
 }
 
 /// 创建透明背景的最终画布

@@ -1,3 +1,5 @@
+//! INFO: wl_pointer interface implementation
+
 use log::{debug, error};
 use wayland_client::protocol::wl_pointer;
 use wayland_client::{Dispatch, Proxy};
@@ -33,7 +35,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 let surface_index = match surface.data::<usize>() {
                     Some(idx) => *idx,
                     None => {
-                        error!("can not get surface index, exit!");
+                        error!("can not get surface index in Enter, exit!");
                         std::process::exit(0)
                     }
                 };
@@ -60,12 +62,23 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 // 转换成相对surface的坐标
                 // let x = surface_x + foam_output.global_x as f64;
                 // let y = surface_y + foam_output.global_y as f64;
-                let (x, y) = foam_output.scale.as_ref().unwrap().calculate_pos((
-                    surface_x + foam_output.global_x as f64,
-                    surface_y + foam_output.global_y as f64,
-                ));
+                // NOTE: 坐标不在给出的surface范围内，对其进行一次转换
+                let (x, y) = if surface_x < 0.0
+                    || surface_y < 0.0
+                    || surface_x > foam_output.width.into()
+                    || surface_y > foam_output.height.into()
+                {
+                    (
+                        surface_x + foam_output.global_x as f64,
+                        surface_y + foam_output.global_y as f64,
+                    )
+                } else {
+                    (surface_x, surface_y)
+                };
 
                 // 发送多个enter时候，只选择满足坐标约束的
+                debug!("surface_x:{}, surface_y:{}", surface_x, surface_y);
+                // TODO: 也许不必要
                 if x >= 0.0
                     && y >= 0.0
                     && x <= foam_output.width as f64
@@ -87,13 +100,10 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                         .get_or_insert(surface_index);
 
                     // 鼠标未移动时进行初始化
-                    if app.wlctx.pointer_helper.g_current_pos.is_none() {
-                        let global_pos = (
-                            x + foam_output.global_x as f64,
-                            y + foam_output.global_y as f64,
-                        );
-                        app.wlctx.pointer_helper.g_current_pos = Some(global_pos);
-                    }
+                    app.wlctx.pointer_helper.g_current_pos.get_or_insert((
+                        x + foam_output.global_x as f64,
+                        y + foam_output.global_y as f64,
+                    ));
                 }
             }
 
@@ -107,11 +117,12 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     match button_state {
                         wl_pointer::ButtonState::Pressed => match app.action {
                             Action::WaitPointerPress => {
+                                app.action = Action::OnDraw;
+
                                 app.wlctx.pointer_helper.start_index = app.wlctx.current_index;
                                 app.wlctx.pointer_helper.g_start_pos =
                                     app.wlctx.pointer_helper.g_current_pos;
                                 app.wlctx.generate_rects_and_send_frame();
-                                app.action = Action::OnDraw;
                             }
                             Action::OnEdit(EditAction::None) => {
                                 app.wlctx.pointer_helper.g_start_pos =
@@ -142,7 +153,20 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                             } else {
                                 match app.target {
                                     UserTarget::Shot => Action::Output,
-                                    UserTarget::Recorder => Action::OnRecorder,
+                                    UserTarget::Recorder => {
+                                        // TODO:
+                                        todo!()
+                                        // app.wlctx.unset_freeze();
+                                        // app.wlctx
+                                        //     .foam_outputs
+                                        //     .as_mut()
+                                        //     .unwrap()
+                                        //     .iter_mut()
+                                        //     .for_each(|m| {
+                                        //         m.layer_surface.as_mut().unwrap().destroy();
+                                        //     });
+                                        // Action::OnRecorder
+                                    }
                                 }
                             };
                         }
@@ -156,21 +180,15 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 surface_x,
                 surface_y,
             } => {
-                let (unknown_index, start_index) = match (
+                let (unknown_index, start_index, outputs) = match (
                     app.wlctx.unknown_index,
                     app.wlctx.pointer_helper.start_index,
+                    app.wlctx.foam_outputs.as_ref(),
                 ) {
-                    (Some(u), Some(s)) => (u, s),
+                    (Some(u), Some(s), Some(o)) => (u, s, o),
                     _ => {
-                        error!("can not get surface index, exit!");
-                        std::process::exit(0)
-                    }
-                };
-
-                let outputs = match app.wlctx.foam_outputs.as_ref() {
-                    Some(o) => o,
-                    None => {
-                        error!("can not get foam_outputs, exit!");
+                        error!("can not get surface index in Motion, exit!");
+                        // return;
                         std::process::exit(0)
                     }
                 };
