@@ -63,6 +63,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 // let x = surface_x + foam_output.global_x as f64;
                 // let y = surface_y + foam_output.global_y as f64;
                 // NOTE: 坐标不在给出的surface范围内，对其进行一次转换
+                // FUCK HYPRLAND, Unexpected events
                 let (x, y) = if surface_x < 0.0
                     || surface_y < 0.0
                     || surface_x > foam_output.width.into()
@@ -78,7 +79,6 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
 
                 // 发送多个enter时候，只选择满足坐标约束的
                 debug!("surface_x:{}, surface_y:{}", surface_x, surface_y);
-                // TODO: 也许不必要
                 if x >= 0.0
                     && y >= 0.0
                     && x <= foam_output.width as f64

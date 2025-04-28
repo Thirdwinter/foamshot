@@ -12,7 +12,8 @@ use crate::foamcore::FoamShot;
 #[derive(Default)]
 pub struct PointerHelper {
     pub pointer: Option<wl_pointer::WlPointer>,
-
+    // TODO:
+    // pub cursor_surface: Option<wl_surface::WlSurface>,
     pub cursor_shape_manager: Option<(wp_cursor_shape_manager_v1::WpCursorShapeManagerV1, u32)>,
     pub cursor_shape_device: Option<wp_cursor_shape_device_v1::WpCursorShapeDeviceV1>,
 

@@ -101,7 +101,6 @@ impl FoamMonitors {
         let surface = self.surface.as_mut().expect("Missing surfaces");
 
         let viewport = viewporter.get_viewport(surface, qh, id);
-        // viewport.set_source(0.0, 0.0, self.width as f64, self.height as f64);
         viewport.set_destination(self.logical_width, self.logical_height);
 
         if let Some((fm, _)) = fractional_manager {
@@ -288,6 +287,7 @@ impl FoamScale {
         }
     }
 
+    #[allow(unused)]
     pub fn get_scale(&self) -> f64 {
         if let Some(fractional) = self.fractional.as_ref() {
             let mut scale = fractional.0;
@@ -295,10 +295,8 @@ impl FoamScale {
                 scale = 120;
             }
             scale as f64 / 120.0
-            // (pos.0 * scale_f64, pos.1 * scale_f64)
         } else {
             self.normal as f64
-            // (pos.0 * self.normal as f64, pos.1 * self.normal as f64)
         }
     }
 
@@ -314,6 +312,7 @@ impl FoamScale {
         self.fractional.is_some()
     }
 
+    #[allow(unused)]
     pub fn update_normal(&mut self, normal: u32) -> bool {
         let changed = self.normal != normal;
         self.normal = normal;
