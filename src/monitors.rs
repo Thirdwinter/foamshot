@@ -287,6 +287,19 @@ impl FoamScale {
         }
     }
 
+    #[allow(unused)]
+    pub fn get_scale(&self) -> f64 {
+        if let Some(fractional) = self.fractional.as_ref() {
+            let mut scale = fractional.0;
+            if scale == 0 {
+                scale = 120;
+            }
+            scale as f64 / 120.0
+        } else {
+            self.normal as f64
+        }
+    }
+
     fn new_normal() -> Self {
         Self {
             normal: 1,
@@ -299,6 +312,7 @@ impl FoamScale {
         self.fractional.is_some()
     }
 
+    #[allow(unused)]
     pub fn update_normal(&mut self, normal: u32) -> bool {
         let changed = self.normal != normal;
         self.normal = normal;

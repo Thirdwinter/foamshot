@@ -63,6 +63,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 // let x = surface_x + foam_output.global_x as f64;
                 // let y = surface_y + foam_output.global_y as f64;
                 // NOTE: 坐标不在给出的surface范围内，对其进行一次转换
+                // FUCK HYPRLAND, Unexpected events
                 let (x, y) = if surface_x < 0.0
                     || surface_y < 0.0
                     || surface_x > foam_output.width.into()
@@ -78,7 +79,6 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
 
                 // 发送多个enter时候，只选择满足坐标约束的
                 debug!("surface_x:{}, surface_y:{}", surface_x, surface_y);
-                // TODO: 也许不必要
                 if x >= 0.0
                     && y >= 0.0
                     && x <= foam_output.width as f64
@@ -99,10 +99,12 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                         .start_index
                         .get_or_insert(surface_index);
 
+                    let sp = foam_output.scale.as_ref().unwrap().calculate_pos((x, y));
                     // 鼠标未移动时进行初始化
                     app.wlctx.pointer_helper.g_current_pos.get_or_insert((
-                        x + foam_output.global_x as f64,
-                        y + foam_output.global_y as f64,
+                        // foam_output.scale.as_ref().unwrap().calculate_pos((x, y))
+                        sp.0 + foam_output.global_x as f64,
+                        sp.1 + foam_output.global_y as f64,
                     ));
                 }
             }
@@ -212,13 +214,12 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                 );
 
                 // TEST: 先凑合着
-                let global_pos = start_output
-                    .scale
-                    .as_ref()
-                    .unwrap()
-                    .calculate_pos(global_pos);
+                let sp = start_output.scale.as_ref().unwrap().calculate_pos((x, y));
 
-                app.wlctx.pointer_helper.g_current_pos = Some(global_pos);
+                app.wlctx.pointer_helper.g_current_pos = Some((
+                    sp.0 + start_output.global_x as f64,
+                    sp.1 + start_output.global_y as f64,
+                ));
 
                 match app.action {
                     Action::OnDraw => {

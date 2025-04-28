@@ -1,6 +1,5 @@
 //! INFO: Provides wrappers for output to fs
 mod common;
-// mod ffmpeg;
 mod jpg;
 mod png;
 mod wl_clipboard;
