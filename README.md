@@ -1,12 +1,22 @@
-# foam_shot
+# Foamshot - A Wayland Screenshot Utility
 
-A lightweight screenshot utility based on the Wayland screen capture protocol (`wlroots` extension protocol).
+<div align="center">
+        <a>
+            <img src="https://img.shields.io/github/stars/Thirdwinter/foamshot?style=plastic"
+        </a>
+        <a>
+            <img src="https://img.shields.io/github/last-commit/Thirdwinter/foamshot"
+        </a>
+        <a>
+            <img src="https://img.shields.io/github/license/Thirdwinter/foamshot"
+        </a>
+</div>
 
-> ⚠️ **Development Status**: Currently in early experimental phase. APIs and features may undergo significant changes.
+`Foamshot` is a lightweight and fast screenshot utility built for Wayland using Rust.
 
 ---
 
-## Features
+## ✨ Features
 
 - 🔍 **Area Selection Capture**: Interactive screen region selection with PNG/JPEG output
 - 🔍 **toggle screen freeze**: Press key `f` before clicking the mouse to toggle screen freeze
@@ -14,13 +24,25 @@ A lightweight screenshot utility based on the Wayland screen capture protocol (`
 
 ---
 
-## Installation
-`arch aur`: paru -S foamshot-bin
-or build by cargo.
+## 📦 Installation
+### Arch Linux
+```bash
+paru -S foamshot-bin
+# or using yay
+yay -S foamshot-bin
+```
+
+### Using Cargo
+Make sure you have Rust installed on your system.
+```bash
+git clone https://github.com/Thirdwinter/foamshot.git
+cd foamshot
+cargo build --release
+```
 
 ---
 
-## Usage
+## 🚀 Usage
 
 ```
 Usage: foamshot [OPTIONS]
