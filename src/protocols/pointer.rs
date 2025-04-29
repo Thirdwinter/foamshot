@@ -7,7 +7,7 @@ use wayland_protocols::wp::cursor_shape::v1::client::wp_cursor_shape_device_v1::
 
 use crate::action::{Action, EditAction};
 use crate::foamcore::{FoamShot, UserTarget};
-use crate::monitors;
+use crate::{monitors, select_rect};
 
 // TODO:
 #[allow(unused_variables)]
@@ -135,7 +135,7 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                                         let hit_region = global_rect.hit_region(
                                             current_pos.0 as i32,
                                             current_pos.1 as i32,
-                                            15,
+                                            select_rect::THRESHOLD,
                                         );
                                         app.action = Action::OnEdit(hit_region);
                                     }
