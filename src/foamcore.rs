@@ -74,6 +74,10 @@ pub fn run_main_loop() {
             Action::OnDraw => {}
             Action::OnEdit(_a) => {}
             Action::Output => {
+                if !shot_foam.wlctx.current_freeze {
+                    shot_foam.wait_copy(&mut event_queue);
+                }
+
                 // 提前Drop掉layer surface，视觉观感更好
                 shot_foam
                     .wlctx
@@ -86,9 +90,6 @@ pub fn run_main_loop() {
                     });
 
                 // 如果当前的屏幕状态没有被冻结，那么输出前需要进行一次copy来获取当前的屏幕数据
-                if !shot_foam.wlctx.current_freeze {
-                    shot_foam.wait_copy(&mut event_queue);
-                }
                 match shot_foam.wlctx.config.image_type {
                     ImageType::Png => {
                         if let Err(e) = save_helper::save_to_png(&mut shot_foam.wlctx) {
@@ -138,6 +139,7 @@ impl FoamShot {
         // NOTE: 先确保屏幕为正常状态
         if self.action == Action::ToggleFreeze(IsFreeze::UnFreeze)
             || self.action == Action::ToggleFreeze(IsFreeze::NewFrameFreeze)
+            || self.action == Action::Output
         {
             self.wlctx.unset_freeze();
         }
