@@ -115,7 +115,7 @@ impl FoamMonitors {
             layer_shell,
             surface,
             Some(output),
-            Layer::Top,
+            Layer::Overlay,
             "foamshot-selection".to_string(),
             qh,
             id,
