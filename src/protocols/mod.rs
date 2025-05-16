@@ -356,7 +356,23 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
         if let wl_callback::Event::Done { callback_data } = event {
             match app.action {
                 Action::OnDraw | Action::OnEdit(_) => {
-                    app.wlctx.update_select_region();
+                    let base_canvas = app
+                        .wlctx
+                        .scm
+                        .base_canvas
+                        .as_mut()
+                        .unwrap()
+                        .get_mut(data)
+                        .unwrap();
+
+                    app.wlctx
+                        .foam_outputs
+                        .as_mut()
+                        .unwrap()
+                        .get_mut(*data)
+                        .unwrap()
+                        .update_select_subrect(base_canvas, app.wlctx.current_freeze);
+                    // app.wlctx.update_select_region();
                 }
                 _ => {}
             }

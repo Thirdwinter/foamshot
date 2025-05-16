@@ -44,6 +44,7 @@ pub struct FoamMonitors {
     pub layer_surface: Option<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1>,
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
+    pub last_rect: Option<SubRect>,
     pub need_redraw: bool,
     pub pool: Option<slot::SlotPool>,
     pub scale: Option<FoamScale>,
@@ -175,10 +176,6 @@ impl FoamMonitors {
 
     /// 该方法用于绘制所属输出上的子矩形
     pub fn update_select_subrect(&mut self, base_canvas: &[u8], freeze: bool) {
-        if self.subrect.is_none() {
-            return;
-        }
-
         let (w, h) = (self.width, self.height);
         let surface = self.surface.as_ref().expect("Missing surfaces");
         let pool = self.pool.as_mut().unwrap();
@@ -206,9 +203,24 @@ impl FoamMonitors {
         // 获取Cairo表面尺寸
         let surface_width = cairo_surface.width() as f64;
         let surface_height = cairo_surface.height() as f64;
+        debug!("redraw {}", self.id);
 
         // 设置半透明白色
         cr.set_source_rgba(0.8, 0.8, 0.8, 0.3);
+        if self.subrect.is_none() {
+            cr.paint().unwrap();
+
+            buffer.attach_to(surface).unwrap(); // 如果 attach_to 失败则返回
+
+            surface.damage_buffer(0, 0, w, h);
+
+            // 提交 surface
+            surface.commit();
+            self.need_redraw = false;
+            self.base_buffer = Some(buffer);
+            return;
+        }
+
         cr.rectangle(0.0, 0.0, surface_width, surface_height);
 
         let subrect = self.subrect.as_ref().unwrap();

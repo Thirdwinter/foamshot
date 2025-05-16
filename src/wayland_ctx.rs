@@ -22,7 +22,7 @@ use crate::{
     frame_queue::FrameQueue,
     monitors,
     pointer_helper::PointerHelper,
-    select_rect::SelectRect,
+    select_rect::{SelectRect, SubRect},
     zwlr_screencopy_mode,
 };
 
@@ -248,12 +248,16 @@ impl WaylandCtx {
                 // 更新输出状态
                 output.new_subrect(local_x, local_y, width, height);
                 output.need_redraw = true;
-
-                // 提交surface更新
-                if let Some(surface) = &mut output.surface {
-                    let qh = self.qh.as_ref().unwrap();
-                    surface.frame(qh, output.id);
-                    surface.commit();
+                if output.subrect != output.last_rect {
+                    output.last_rect =
+                        Some(SubRect::new(output.id, local_x, local_y, width, height));
+                    // 提交surface更新
+                    if let Some(surface) = &mut output.surface {
+                        let qh = self.qh.as_ref().unwrap();
+                        surface.frame(qh, output.id);
+                        // surface.damage_buffer(0, 0, output.width, output.height);
+                        surface.commit();
+                    }
                 }
             } else {
                 // 清理无效区域
