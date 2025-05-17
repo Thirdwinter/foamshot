@@ -45,7 +45,7 @@ pub struct FoamMonitors {
     // TODO: add sub rect with Option
     pub subrect: Option<SubRect>,
     pub last_rect: Option<SubRect>,
-    pub need_redraw: bool,
+    // pub need_redraw: bool,
     pub pool: Option<slot::SlotPool>,
     pub scale: Option<FoamScale>,
 }
@@ -203,7 +203,7 @@ impl FoamMonitors {
         // 获取Cairo表面尺寸
         let surface_width = cairo_surface.width() as f64;
         let surface_height = cairo_surface.height() as f64;
-        debug!("redraw {}", self.id);
+        // debug!("redraw {}", self.id);
 
         // 设置半透明白色
         cr.set_source_rgba(0.8, 0.8, 0.8, 0.3);
@@ -216,7 +216,7 @@ impl FoamMonitors {
 
             // 提交 surface
             surface.commit();
-            self.need_redraw = false;
+            // self.need_redraw = false;
             self.base_buffer = Some(buffer);
             return;
         }
@@ -276,11 +276,14 @@ impl FoamMonitors {
 
         buffer.attach_to(surface).unwrap(); // 如果 attach_to 失败则返回
 
+        surface.commit();
+        // if let Some(ref old) = self.last_rect {
         surface.damage_buffer(0, 0, w, h);
+        // }
 
         // 提交 surface
         surface.commit();
-        self.need_redraw = false;
+        // self.need_redraw = false;
         self.base_buffer = Some(buffer)
     }
 }

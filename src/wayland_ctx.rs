@@ -1,6 +1,7 @@
 //! INFO: common context
 use cairo::{Context, ImageSurface};
 use log::debug;
+use smithay_client_toolkit::shm::{self};
 use wayland_client::{
     QueueHandle,
     protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat},
@@ -11,6 +12,7 @@ use wayland_protocols::{
         fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
         viewporter::client::wp_viewporter,
     },
+    xdg::xdg_output::zv1::client::zxdg_output_manager_v1,
 };
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 
@@ -19,7 +21,7 @@ use crate::{
     foamcore::FoamShot,
     monitors,
     pointer_helper::PointerHelper,
-    select_rect::{SelectRect, SubRect},
+    select_rect::SelectRect,
     zwlr_screencopy_mode,
 };
 
@@ -36,6 +38,7 @@ pub struct WaylandCtx {
     // pub screencopy_manager: Option<(zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, u32)>,
     pub layer_shell: Option<(zwlr_layer_shell_v1::ZwlrLayerShellV1, u32)>,
     pub xdg_output_manager: Option<(zxdg_output_manager_v1::ZxdgOutputManagerV1, u32)>,
+    // pub xdgwmbase: Option<(xdg_wm_base::XdgWmBase, u32)>,
     pub viewporter: Option<(wp_viewporter::WpViewporter, u32)>,
     pub fractional_manager: Option<(WpFractionalScaleManagerV1, u32)>,
 
@@ -56,12 +59,14 @@ pub struct WaylandCtx {
     pub config: config::FoamConfig,
     pub scm: zwlr_screencopy_mode::ZwlrScreencopyMode,
     pub global_rect: Option<SelectRect>,
+    // pub fq: FrameQueue,
 }
 
 impl WaylandCtx {
     pub fn new(shm: shm::Shm, qh: QueueHandle<FoamShot>, config: FoamConfig) -> Self {
         Self {
             qh: Some(qh),
+            // fq: FrameQueue::new(SlotPool::new(256 * 256, &shm).ok()),
             shm: Some(shm),
             foam_outputs: Some(Vec::new()),
             config: config::FoamConfig::new(),
@@ -240,23 +245,18 @@ impl WaylandCtx {
 
                 // 更新输出状态
                 output.new_subrect(local_x, local_y, width, height);
-                output.need_redraw = true;
-                if output.subrect != output.last_rect {
-                    output.last_rect =
-                        Some(SubRect::new(output.id, local_x, local_y, width, height));
-                    // 提交surface更新
-                    if let Some(surface) = &mut output.surface {
-                        let qh = self.qh.as_ref().unwrap();
-                        surface.frame(qh, output.id);
-                        // surface.damage_buffer(0, 0, output.width, output.height);
-                        surface.commit();
-                    }
-                }
             } else {
                 // 清理无效区域
                 output.subrect = None;
                 // TODO: 这里应该不用显示设置为false
-                output.need_redraw = false;
+                // output.need_redraw = false;
+            }
+
+            if let Some(surface) = &mut output.surface {
+                let qh = self.qh.as_ref().unwrap();
+                surface.frame(qh, output.id);
+                // surface.damage_buffer(0, 0, output.width, output.height);
+                surface.commit();
             }
         }
     }
@@ -335,9 +335,10 @@ impl WaylandCtx {
             .iter_mut()
             .enumerate()
             .for_each(|(i, v)| {
-                if !v.need_redraw {
+                if v.last_rect == v.subrect {
                     return;
                 }
+                v.last_rect = v.subrect.clone();
                 let base_canvas = self.scm.base_canvas.as_mut().unwrap().get_mut(&i).unwrap();
 
                 v.update_select_subrect(base_canvas, self.current_freeze);
