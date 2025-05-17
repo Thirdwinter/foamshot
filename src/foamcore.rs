@@ -166,26 +166,27 @@ impl FoamShot {
     }
 
     /// TODO: 循环录制
+    #[allow(unused_variables)]
     pub fn wait_copy_2(&mut self, event_queue: &mut EventQueue<FoamShot>) {
-        self.wlctx.fq.is_copy = false;
-        self.wlctx.scm.request_copy_one(
-            true,
-            self.wlctx
-                .foam_outputs
-                .as_ref()
-                .unwrap()
-                .first()
-                .unwrap()
-                .output
-                .as_ref()
-                .unwrap(),
-            self.wlctx.qh.as_ref().unwrap(),
-            0,
-        );
-
-        while !self.wlctx.fq.is_copy {
-            event_queue.blocking_dispatch(self).unwrap();
-        }
+        // self.wlctx.fq.is_copy = false;
+        // self.wlctx.scm.request_copy_one(
+        //     true,
+        //     self.wlctx
+        //         .foam_outputs
+        //         .as_ref()
+        //         .unwrap()
+        //         .first()
+        //         .unwrap()
+        //         .output
+        //         .as_ref()
+        //         .unwrap(),
+        //     self.wlctx.qh.as_ref().unwrap(),
+        //     0,
+        // );
+        //
+        // while !self.wlctx.fq.is_copy {
+        //     event_queue.blocking_dispatch(self).unwrap();
+        // }
     }
 
     /// 上层调用，切换所有输出上的屏幕冻结状态，在调用前需要使用 `wait_freeze` 重新进行屏幕copy

@@ -1,3 +1,4 @@
+#![allow(unused)]
 use image::{ImageBuffer, Rgba, codecs::gif::GifEncoder};
 use log::debug;
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
@@ -66,6 +67,7 @@ impl FrameQueue {
         // println!("len: {}", self.f.iter().len())
     }
 
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_gif(&mut self, output_path: &str) -> Result<(), Box<dyn std::error::Error>> {
         // 创建输出文件
         let file = std::fs::File::create(output_path)?;

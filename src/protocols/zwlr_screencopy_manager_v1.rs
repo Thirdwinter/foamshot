@@ -2,7 +2,6 @@
 //! Used for screen frame capture
 use log::*;
 use smithay_client_toolkit::shm::slot::SlotPool;
-use wayland_client::protocol::wl_shm::Format;
 use wayland_client::{Dispatch, Proxy};
 use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1, zwlr_screencopy_manager_v1,
@@ -98,57 +97,57 @@ impl Dispatch<zwlr_screencopy_frame_v1::ZwlrScreencopyFrameV1, usize> for FoamSh
                 }
             }
             UserTarget::Recorder => {
-                match event {
-                    #[allow(unused)]
-                    zwlr_screencopy_frame_v1::Event::LinuxDmabuf {
-                        format,
-                        width,
-                        height,
-                    } => {
-                        let bytes = format.to_le_bytes();
-                        let f = match &bytes {
-                            b"XR24" => Format::Xbgr8888,
-                            b"AR24" => Format::Argb8888,
-                            _ => {
-                                println!("Unsupported LinuxDmabuf format: {:?}", bytes);
-                                std::process::exit(-1);
-                            }
-                        };
-                    }
-                    zwlr_screencopy_frame_v1::Event::Buffer {
-                        format,
-                        width,
-                        height,
-                        stride,
-                    } => {
-                        app.wlctx.fq.new_buffer(
-                            width as i32,
-                            height as i32,
-                            stride as i32,
-                            format.into_result().unwrap(),
-                        );
-                    }
-                    zwlr_screencopy_frame_v1::Event::BufferDone => {
-                        let buffer = app.wlctx.fq.current_buffer.as_mut().unwrap();
-                        proxy.copy(buffer.wl_buffer());
-                    }
-                    zwlr_screencopy_frame_v1::Event::Ready {
-                        tv_sec_hi, // 时间戳的秒数（高32位）
-                        tv_sec_lo, // 时间戳的秒数（低32位）
-                        tv_nsec,   // 时间戳中的纳秒部分
-                    } => {
-                        let seconds: u64 = ((tv_sec_hi as u64) << 32) | (tv_sec_lo as u64);
-                        // 转换为精确时间戳
-                        let timestamp = (seconds * 1_000_000_000) + tv_nsec as u64;
-                        app.wlctx.fq.storage_canvas(timestamp);
-                        proxy.destroy();
-                    }
-                    zwlr_screencopy_frame_v1::Event::Failed => {
-                        warn!("buffer copy error");
-                        app.action = Action::Exit;
-                    }
-                    _ => (),
-                }
+                // match event {
+                //     #[allow(unused)]
+                //     zwlr_screencopy_frame_v1::Event::LinuxDmabuf {
+                //         format,
+                //         width,
+                //         height,
+                //     } => {
+                //         let bytes = format.to_le_bytes();
+                //         let f = match &bytes {
+                //             b"XR24" => Format::Xbgr8888,
+                //             b"AR24" => Format::Argb8888,
+                //             _ => {
+                //                 println!("Unsupported LinuxDmabuf format: {:?}", bytes);
+                //                 std::process::exit(-1);
+                //             }
+                //         };
+                //     }
+                //     zwlr_screencopy_frame_v1::Event::Buffer {
+                //         format,
+                //         width,
+                //         height,
+                //         stride,
+                //     } => {
+                //         app.wlctx.fq.new_buffer(
+                //             width as i32,
+                //             height as i32,
+                //             stride as i32,
+                //             format.into_result().unwrap(),
+                //         );
+                //     }
+                //     zwlr_screencopy_frame_v1::Event::BufferDone => {
+                //         let buffer = app.wlctx.fq.current_buffer.as_mut().unwrap();
+                //         proxy.copy(buffer.wl_buffer());
+                //     }
+                //     zwlr_screencopy_frame_v1::Event::Ready {
+                //         tv_sec_hi, // 时间戳的秒数（高32位）
+                //         tv_sec_lo, // 时间戳的秒数（低32位）
+                //         tv_nsec,   // 时间戳中的纳秒部分
+                //     } => {
+                //         let seconds: u64 = ((tv_sec_hi as u64) << 32) | (tv_sec_lo as u64);
+                //         // 转换为精确时间戳
+                //         let timestamp = (seconds * 1_000_000_000) + tv_nsec as u64;
+                //         app.wlctx.fq.storage_canvas(timestamp);
+                //         proxy.destroy();
+                //     }
+                //     zwlr_screencopy_frame_v1::Event::Failed => {
+                //         warn!("buffer copy error");
+                //         app.action = Action::Exit;
+                //     }
+                //     _ => (),
+                // }
             }
         }
     }

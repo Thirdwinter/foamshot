@@ -29,7 +29,7 @@ use wayland_protocols::{
         fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
         viewporter::client::wp_viewporter::WpViewporter,
     },
-    xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
+    xdg::xdg_output::zv1::client::zxdg_output_manager_v1,
 };
 use wayland_protocols_wlr::{
     layer_shell::v1::client::zwlr_layer_shell_v1::ZwlrLayerShellV1,
@@ -124,12 +124,12 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                         }
                     }
                     // xdgwmbase
-                    _ if interface_name == xdg_wm_base::XdgWmBase::interface().name => {
-                        if app.wlctx.xdgwmbase.is_none() {
-                            let base = proxy.bind(name, version, qh, ());
-                            app.wlctx.xdgwmbase = Some((base, name));
-                        }
-                    }
+                    // _ if interface_name == xdg_wm_base::XdgWmBase::interface().name => {
+                    //     if app.wlctx.xdgwmbase.is_none() {
+                    //         let base = proxy.bind(name, version, qh, ());
+                    //         app.wlctx.xdgwmbase = Some((base, name));
+                    //     }
+                    // }
                     // Viewporter
                     _ if interface_name == WpViewporter::interface().name => {
                         if app.wlctx.viewporter.is_none() {
@@ -356,23 +356,7 @@ impl Dispatch<wl_callback::WlCallback, usize> for FoamShot {
         if let wl_callback::Event::Done { callback_data } = event {
             match app.action {
                 Action::OnDraw | Action::OnEdit(_) => {
-                    let base_canvas = app
-                        .wlctx
-                        .scm
-                        .base_canvas
-                        .as_mut()
-                        .unwrap()
-                        .get_mut(data)
-                        .unwrap();
-
-                    app.wlctx
-                        .foam_outputs
-                        .as_mut()
-                        .unwrap()
-                        .get_mut(*data)
-                        .unwrap()
-                        .update_select_subrect(base_canvas, app.wlctx.current_freeze);
-                    // app.wlctx.update_select_region();
+                    app.wlctx.update_select_region();
                 }
                 _ => {}
             }

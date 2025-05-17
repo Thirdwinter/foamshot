@@ -1,7 +1,6 @@
 //! INFO: common context
 use cairo::{Context, ImageSurface};
 use log::debug;
-use smithay_client_toolkit::shm::{self, slot::SlotPool};
 use wayland_client::{
     QueueHandle,
     protocol::{wl_compositor, wl_keyboard, wl_pointer, wl_seat},
@@ -12,14 +11,12 @@ use wayland_protocols::{
         fractional_scale::v1::client::wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
         viewporter::client::wp_viewporter,
     },
-    xdg::{shell::client::xdg_wm_base, xdg_output::zv1::client::zxdg_output_manager_v1},
 };
 use wayland_protocols_wlr::layer_shell::v1::client::zwlr_layer_shell_v1;
 
 use crate::{
     config::{self, FoamConfig},
     foamcore::FoamShot,
-    frame_queue::FrameQueue,
     monitors,
     pointer_helper::PointerHelper,
     select_rect::{SelectRect, SubRect},
@@ -39,7 +36,6 @@ pub struct WaylandCtx {
     // pub screencopy_manager: Option<(zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1, u32)>,
     pub layer_shell: Option<(zwlr_layer_shell_v1::ZwlrLayerShellV1, u32)>,
     pub xdg_output_manager: Option<(zxdg_output_manager_v1::ZxdgOutputManagerV1, u32)>,
-    pub xdgwmbase: Option<(xdg_wm_base::XdgWmBase, u32)>,
     pub viewporter: Option<(wp_viewporter::WpViewporter, u32)>,
     pub fractional_manager: Option<(WpFractionalScaleManagerV1, u32)>,
 
@@ -60,15 +56,12 @@ pub struct WaylandCtx {
     pub config: config::FoamConfig,
     pub scm: zwlr_screencopy_mode::ZwlrScreencopyMode,
     pub global_rect: Option<SelectRect>,
-
-    pub fq: FrameQueue,
 }
 
 impl WaylandCtx {
     pub fn new(shm: shm::Shm, qh: QueueHandle<FoamShot>, config: FoamConfig) -> Self {
         Self {
             qh: Some(qh),
-            fq: FrameQueue::new(SlotPool::new(256 * 256, &shm).ok()),
             shm: Some(shm),
             foam_outputs: Some(Vec::new()),
             config: config::FoamConfig::new(),
