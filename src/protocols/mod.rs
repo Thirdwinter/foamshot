@@ -123,13 +123,6 @@ impl Dispatch<wl_registry::WlRegistry, ()> for FoamShot {
                             app.wlctx.xdg_output_manager = Some((manager, name));
                         }
                     }
-                    // xdgwmbase
-                    // _ if interface_name == xdg_wm_base::XdgWmBase::interface().name => {
-                    //     if app.wlctx.xdgwmbase.is_none() {
-                    //         let base = proxy.bind(name, version, qh, ());
-                    //         app.wlctx.xdgwmbase = Some((base, name));
-                    //     }
-                    // }
                     // Viewporter
                     _ if interface_name == WpViewporter::interface().name => {
                         if app.wlctx.viewporter.is_none() {

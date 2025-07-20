@@ -26,6 +26,7 @@ impl Dispatch<zwlr_layer_surface_v1::ZwlrLayerSurfaceV1, usize> for FoamShot {
                     return;
                 }
                 debug!("Configure {}: {}x{}", data, width, height);
+                // NOTE: 先发生ack请求才能渲染
                 proxy.ack_configure(serial);
                 proxy.set_size(width, height);
                 if app.action == Action::Init {
