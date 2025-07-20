@@ -95,15 +95,18 @@ pub fn run_main_loop() {
                         if let Err(e) = save_helper::save_to_png(&mut shot_foam.wlctx) {
                             shot_foam.send_error("image saved error");
                             log::error!("save to png error: {}", e);
+                            std::process::exit(0)
                         }
                     }
                     ImageType::Jpg => {
                         if let Err(e) = save_helper::save_to_jpg(&mut shot_foam.wlctx, 100) {
                             shot_foam.send_error("image saved error");
                             log::error!("save to jpg error: {}", e);
+                            std::process::exit(0)
                         }
                     }
                 }
+                println!("{}", shot_foam.wlctx.config.output_path.display());
                 save_helper::save_to_wl_clipboard(&mut shot_foam.wlctx).unwrap();
 
                 shot_foam.send_save_info();
