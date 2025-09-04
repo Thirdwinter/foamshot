@@ -8,10 +8,10 @@ use crate::action::{Action, IsFreeze};
 use crate::foamcore::FoamShot;
 
 const KEY_F: u32 = 33;
-const KEY_ESC: u32 = 1;
 const KEY_A: u32 = 30;
 const KEY_S: u32 = 31;
 const KEY_M: u32 = 50;
+const KEY_Q: u32 = 16;
 
 // TODO:
 #[allow(unused_variables)]
@@ -53,7 +53,7 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for FoamShot {
                         Action::ToggleFreeze(IsFreeze::UnFreeze)
                     };
                 }
-                KEY_ESC => match app.action {
+                KEY_Q => match app.action {
                     Action::OnEdit(a) => {
                         app.action = if app.wlctx.current_freeze {
                             Action::ToggleFreeze(IsFreeze::OldFrameFreeze)
