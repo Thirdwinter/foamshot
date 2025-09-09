@@ -208,18 +208,15 @@ impl Dispatch<wl_pointer::WlPointer, ()> for FoamShot {
                     surface_y,
                 );
 
-                let global_pos = (
-                    x + start_output.global_x as f64,
-                    y + start_output.global_y as f64,
-                );
-
-                // TEST: 先凑合着
+                // Only calculate once
                 let sp = start_output.scale.as_ref().unwrap().calculate_pos((x, y));
 
-                app.wlctx.pointer_helper.g_current_pos = Some((
+                let global_pos = (
                     sp.0 + start_output.global_x as f64,
                     sp.1 + start_output.global_y as f64,
-                ));
+                );
+
+                app.wlctx.pointer_helper.g_current_pos = Some((global_pos.0, global_pos.1));
 
                 match app.action {
                     Action::OnDraw => {
